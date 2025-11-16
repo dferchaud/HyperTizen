@@ -36,11 +36,19 @@ If you somehow find this useful, or just want to support questionable AI-driven 
 
 This is an **experimental fork** of [HyperTizen](https://github.com/reisxd/HyperTizen) focused on exploring screen capture functionality for **Tizen 8.0+ TVs**. The original HyperTizen uses capture APIs that may have different availability on newer TV models. This fork provides a scaffolding structure for researching and implementing potential capture methods for Tizen 8.0+ compatibility.
 
-### Status: Research & Development
+### Status: Active Development
 
-This fork is primarily focused on research and exploration of potential Tizen 8+ capture methods. The current implementation provides **scaffolding and structure** for capture methods, but actual capture functionality is **NOT YET IMPLEMENTED**. This is a starter project to lay the groundwork for future capture method implementations.
+This fork is focused on implementing screen capture functionality for **Tizen 8.0+ TVs**.
 
-**Capture Architecture:** HyperTizen includes a systematic `ICaptureMethod` interface structure designed to support multiple capture approaches. The `CaptureMethodSelector` is configured to test available methods on startup (T8SDK → T7SDK → PixelSampling), but the underlying capture functionality is not operational.
+**✅ Pixel Sampling Capture Method**: Now **IMPLEMENTED** using `libvideoenhance.so`
+- Samples 16 pixels from screen edges for ambient lighting
+- Converts 10-bit RGB to NV12 format for FlatBuffers transmission
+- Supports both Tizen 6 and Tizen 7+ API variants
+- Requires hardware testing to verify color accuracy and coordinate mapping
+
+**⚠️ Other Capture Methods**: T8SDK and T7SDK remain as scaffolding (not yet implemented)
+
+**Capture Architecture:** HyperTizen uses a systematic `ICaptureMethod` interface with automatic fallback. The `CaptureMethodSelector` tests available methods on startup (T8SDK → T7SDK → PixelSampling) and selects the first working method.
 
 ---
 
@@ -148,26 +156,62 @@ The control panel is perfect for:
 - **Browser-Based Control Panel**: Full service control and monitoring (control port 45677, logs port 45678)
 - **Architecture Framework**: Structured `ICaptureMethod` interface with automatic fallback selection
 - **System Info Detection**: Detects Tizen version and TV capabilities
-- **Capture Method Selector**: Tests and selects best available capture method (when implemented)
+- **Capture Method Selector**: Tests and selects best available capture method automatically
 - **Log Level Filtering**: Client-side filtering in browser (Debug/Info/Warning/Error/Performance)
+- **✅ Pixel Sampling Capture**: Full implementation using `libvideoenhance.so`
+  - 16-point edge sampling for ambient lighting
+  - 10-bit to 8-bit RGB conversion
+  - RGB to NV12 color space conversion
+  - FlatBuffers integration for HyperHDR/Hyperion
+  - **Status**: Code complete, awaiting hardware testing
 
-### Not Yet Implemented
+### Partially Implemented
 
-- **Capture Methods**: All capture method implementations (T8SDK, T7SDK, PixelSampling, etc.) are scaffolding only
-  - No actual frame or pixel capture is currently functional
-  - These are placeholders for future implementation
+- **T8SDK Capture Method**: Scaffolding exists, core implementation not yet added
+- **T7SDK Capture Method**: Scaffolding exists, core implementation not yet added
+
+### Known Issues & Testing Needed
+
+**Pixel Sampling Method:**
+- ⚠️ **Color accuracy**: Original implementation had color detection issues (red→yellow) - needs verification on actual hardware
+- ⚠️ **Coordinate mapping**: Original had inverted bottom/left zones - improved bounds checking added but needs testing
+- ⚠️ **Performance**: Pixel sampling is slower than frame capture - actual FPS unknown until hardware testing
+- ⚠️ **10-bit clamping**: Uses simple clamping (not scaling) from 10-bit to 8-bit - may need adjustment based on testing
+
+### Testing the Pixel Sampling Implementation
+
+To test the pixel sampling capture method on your Tizen 8.0+ TV:
+
+1. **Build and install** the updated HyperTizen package on your TV
+2. **Start the service** and monitor via WebSocket logs at `http://<TV_IP>:45678`
+3. **Watch for log messages** showing:
+   - `PixelSampling: Library found, available`
+   - `PixelSampling Test: SUCCESS - Screen: WxH, Points: N`
+   - Color values being sampled (10-bit RGB)
+4. **Connect to HyperHDR/Hyperion** and verify ambient lighting displays correctly
+5. **Test color accuracy**: Display pure colors (red, green, blue) and verify they appear correctly
+6. **Test edge mapping**: Move content along edges and verify LEDs respond in correct direction
+
+**What to report:**
+- Screen resolution detected
+- Number of capture points supported
+- Sleep time required by API
+- Color accuracy (any red→yellow issues?)
+- Coordinate mapping (any inverted edges?)
+- Performance (FPS achieved)
 
 ### Research Notes on Tizen 8.0+ Capture
 
 - **Standard APIs**: May have different availability on Tizen 8.0+ compared to earlier versions
-- **Alternative Methods**: Various approaches exist but require implementation and testing
-- **Framework Differences**: Tizen 8.0+ has architectural changes that affect capture capabilities
+- **VideoEnhance Library**: `libvideoenhance.so` provides pixel sampling API that works on Tizen 6, 7, and 8+
+- **Alternative Methods**: VTable-based frame capture (T8SDK) and legacy APIs (T7SDK) require further research
+- **Framework Differences**: Tizen 8.0+ has architectural changes that affect some capture capabilities
 
 ---
 
 ## Installation
 
-**Note:** This is a starter project with capture method scaffolding only. Actual capture functionality needs to be implemented before the app can capture video frames.
+**Note:** The Pixel Sampling capture method is now implemented. Build and install to test on your Tizen 8.0+ TV.
 
 To install HyperTizen on your Samsung TV running Tizen, you'll need Tizen Studio. You can download it from the [official website](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/installing-tv-sdk.html).
 

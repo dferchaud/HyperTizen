@@ -13,7 +13,7 @@ namespace HyperTizen.SDK
     /// <summary>
     /// Credits to Leonardo Rodrigues for this way to download Tizen Operating System files to USB
     /// Tested on Tizen 8+. Now supports Tizen 9.
-    /// This tool recursively scans /usr/bin and copies OS files to USB for research purposes.
+    /// This tool recursively scans /usr/bin and /usr/lib and copies OS files to USB for research purposes.
     /// </summary>
     public static class Filestealer
     {
@@ -21,6 +21,7 @@ namespace HyperTizen.SDK
         private static int _filesCopied = 0;
         private static int _filesBlocked = 0;
         private static int _symlinks = 0;
+        private static readonly string[] _scanPaths = new[] { "/usr/bin", "/usr/lib" };
 
         private static void ScanDirectory(string dir, [NotNull] Action<string, byte[]> action)
         {
@@ -65,7 +66,7 @@ namespace HyperTizen.SDK
             catch { }
         }
         /// <summary>
-        /// Copy Tizen OS files from /usr/bin to USB drive asynchronously
+        /// Copy Tizen OS files from /usr/bin and /usr/lib to USB drive asynchronously
         /// Returns a Task that completes when the operation is finished
         /// </summary>
         public static async Task CopyToUsbAsync()
@@ -81,49 +82,56 @@ namespace HyperTizen.SDK
                 try
                 {
                     Log.Write(eLogType.Info, "=== FILESTEALER: Starting USB copy operation ===");
-                    Log.Write(eLogType.Info, "Source: /usr/bin");
+                    Log.Write(eLogType.Info, "Sources: /usr/bin, /usr/lib");
                     Log.Write(eLogType.Info, "Target: /opt/media/USBDriveA1");
                     Log.Write(eLogType.Info, "");
 
-                    ScanDirectory("/usr/bin", (file, bytes) =>
+                    foreach (string sourcePath in _scanPaths)
                     {
-                        try
+                        Log.Write(eLogType.Info, $"Scanning {sourcePath}...");
+
+                        ScanDirectory(sourcePath, (file, bytes) =>
                         {
-                            string fileRelative = file.TrimStart(Path.DirectorySeparatorChar);
-                            string fileTarget = Path.Combine(
-                                "/opt/media/USBDriveA1",
-                                fileRelative
-                            );
-
-                            string fileTargetDir = Path.GetDirectoryName(fileTarget);
-
-                            if (!Directory.Exists(fileTargetDir))
+                            try
                             {
-                                _ = Directory.CreateDirectory(fileTargetDir);
-                            }
+                                string fileRelative = file.TrimStart(Path.DirectorySeparatorChar);
+                                string fileTarget = Path.Combine(
+                                    "/opt/media/USBDriveA1",
+                                    fileRelative
+                                );
 
-                            if (bytes != null)
-                            {
-                                File.WriteAllBytes(fileTarget, bytes);
+                                string fileTargetDir = Path.GetDirectoryName(fileTarget);
 
-                                // Log progress every 100 files
-                                if (_filesCopied % 100 == 0)
+                                if (!Directory.Exists(fileTargetDir))
                                 {
-                                    Log.Write(eLogType.Info,
-                                        $"Progress: {_filesCopied} files copied, {_filesBlocked} blocked, {_symlinks} symlinks");
+                                    _ = Directory.CreateDirectory(fileTargetDir);
+                                }
+
+                                if (bytes != null)
+                                {
+                                    File.WriteAllBytes(fileTarget, bytes);
+
+                                    // Log progress every 100 files
+                                    if (_filesCopied % 100 == 0)
+                                    {
+                                        Log.Write(eLogType.Info,
+                                            $"Progress: {_filesCopied} files copied, {_filesBlocked} blocked, {_symlinks} symlinks");
+                                    }
+                                }
+                                else
+                                {
+                                    // Create empty marker file for symlinks/blocked files
+                                    File.WriteAllText(fileTarget, "");
                                 }
                             }
-                            else
+                            catch (Exception ex)
                             {
-                                // Create empty marker file for symlinks/blocked files
-                                File.WriteAllText(fileTarget, "");
+                                Log.Write(eLogType.Debug, $"Error copying {file}: {ex.Message}");
                             }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Write(eLogType.Debug, $"Error copying {file}: {ex.Message}");
-                        }
-                    });
+                        });
+
+                        Log.Write(eLogType.Info, $"Completed scanning {sourcePath}");
+                    }
 
                     Log.Write(eLogType.Info, "");
                     Log.Write(eLogType.Info, "=== FILESTEALER: Scan completed! ===");

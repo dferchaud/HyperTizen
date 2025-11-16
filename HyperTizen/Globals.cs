@@ -14,6 +14,11 @@ namespace HyperTizen
         // WARNING: Set to false for normal capture operation!
         public const bool FILESTEALER_ENABLED = false;
 
+        // DIAGNOSTIC MODE BUILD CONST: When enabled, diagnostic mode will be enabled by default
+        // Set to true during development/debugging to enable 10-minute diagnostic pause
+        // Set to false for production builds
+        public const bool DIAGNOSTIC_MODE_ENABLED = false;
+
         private static readonly Globals instance = new Globals();
 
         // Explicit static constructor to tell C# compiler

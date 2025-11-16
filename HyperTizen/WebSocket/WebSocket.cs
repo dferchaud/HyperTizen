@@ -192,22 +192,54 @@ namespace HyperTizen.WebSocket
                     case Event.PauseCapture:
                         {
                             Helper.Log.Write(Helper.eLogType.Debug, "Pause capture requested via WebSocket");
-                            App.client.Pause();
-                            await BroadcastStatusUpdate("paused", "Capture paused");
+                            if (App.client != null)
+                            {
+                                App.client.Pause();
+                                await BroadcastStatusUpdate("paused", "Capture paused");
+                            }
+                            else
+                            {
+                                Helper.Log.Write(Helper.eLogType.Warning, "Cannot pause: client not initialized");
+                            }
                             break;
                         }
 
                     case Event.ResumeCapture:
                         {
                             Helper.Log.Write(Helper.eLogType.Debug, "Resume capture requested via WebSocket");
-                            App.client.Resume();
-                            await BroadcastStatusUpdate("capturing", "Capture resumed");
+                            if (App.client != null)
+                            {
+                                App.client.Resume();
+                                await BroadcastStatusUpdate("capturing", "Capture resumed");
+                            }
+                            else
+                            {
+                                Helper.Log.Write(Helper.eLogType.Warning, "Cannot resume: client not initialized");
+                            }
                             break;
                         }
 
                     case Event.GetStatus:
                         {
                             Helper.Log.Write(Helper.eLogType.Debug, "Status requested via WebSocket");
+
+                            // Check if client is initialized yet (may be null during startup)
+                            if (App.client == null)
+                            {
+                                Helper.Log.Write(Helper.eLogType.Debug, "Client not yet initialized, returning stopped status");
+                                string stoppedEvent = JsonConvert.SerializeObject(new StatusResultEvent(
+                                    "Idle",
+                                    0,
+                                    0.0,
+                                    0,
+                                    false,
+                                    "Service initializing...",
+                                    "N/A",
+                                    null));
+                                await SendAsync(webSocket, stoppedEvent);
+                                break;
+                            }
+
                             var status = App.client.GetStatus();
 
                             string uptime = "N/A";
@@ -241,6 +273,11 @@ namespace HyperTizen.WebSocket
                     case Event.RestartService:
                         {
                             Helper.Log.Write(Helper.eLogType.Info, "Service restart requested via WebSocket");
+                            if (App.client == null)
+                            {
+                                Helper.Log.Write(Helper.eLogType.Warning, "Cannot restart: client not initialized");
+                                break;
+                            }
                             try
                             {
                                 // Stop the current capture
@@ -390,6 +427,13 @@ namespace HyperTizen.WebSocket
                         // Perform state-dependent actions outside the lock
                         if (stateChanged)
                         {
+                            if (App.client == null)
+                            {
+                                Helper.Log.Write(Helper.eLogType.Warning,
+                                    "Cannot change capture state: client not initialized");
+                                break;
+                            }
+
                             if (newState)
                             {
                                 Helper.Log.Write(Helper.eLogType.Info, "Starting screen capture");
