@@ -49,6 +49,22 @@ namespace HyperTizen.Capture
 
         #region P/Invoke Declarations
 
+        // dlopen/dlsym for dynamic symbol enumeration
+        private const int RTLD_NOW = 2;
+        private const int RTLD_LAZY = 1;
+
+        [DllImport("libdl.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr dlopen(string filename, int flags);
+
+        [DllImport("libdl.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr dlsym(IntPtr handle, string symbol);
+
+        [DllImport("libdl.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int dlclose(IntPtr handle);
+
+        [DllImport("libdl.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr dlerror();
+
         // Tizen 6 API (cs_ve_* prefix)
         [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
             EntryPoint = "cs_ve_get_rgb_measure_condition")]
@@ -74,6 +90,43 @@ namespace HyperTizen.Capture
         [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
             EntryPoint = "ve_get_rgb_measure_pixel")]
         private static extern int MeasurePixel7(int index, out Color color);
+
+        // Tizen 9+ API variants (potential naming patterns to test)
+        [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "tizen_ve_get_rgb_measure_condition")]
+        private static extern int MeasureCondition9A(out Condition condition);
+
+        [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "tizen_ve_set_rgb_measure_position")]
+        private static extern int MeasurePosition9A(int index, int x, int y);
+
+        [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "tizen_ve_get_rgb_measure_pixel")]
+        private static extern int MeasurePixel9A(int index, out Color color);
+
+        [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "samsung_ve_get_rgb_measure_condition")]
+        private static extern int MeasureCondition9B(out Condition condition);
+
+        [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "samsung_ve_set_rgb_measure_position")]
+        private static extern int MeasurePosition9B(int index, int x, int y);
+
+        [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "samsung_ve_get_rgb_measure_pixel")]
+        private static extern int MeasurePixel9B(int index, out Color color);
+
+        [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "get_rgb_measure_condition")]
+        private static extern int MeasureCondition9C(out Condition condition);
+
+        [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "set_rgb_measure_position")]
+        private static extern int MeasurePosition9C(int index, int x, int y);
+
+        [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
+            EntryPoint = "get_rgb_measure_pixel")]
+        private static extern int MeasurePixel9C(int index, out Color color);
 
         #endregion
 
@@ -176,7 +229,7 @@ namespace HyperTizen.Capture
 
         /// <summary>
         /// Get screen condition parameters from VideoEnhance library
-        /// Uses API fallback: Try Tizen 6 (cs_ve_*) first, then Tizen 7+ (ve_*)
+        /// Uses API fallback: Try multiple Tizen API variants (6, 7, 9+)
         /// </summary>
         private bool GetCondition()
         {
@@ -199,25 +252,19 @@ namespace HyperTizen.Capture
                     _usingTizen7Api = false;
                     Helper.Log.Write(Helper.eLogType.Info, "PixelSampling: Using Tizen 6 API (cs_ve_*)");
                     Helper.Log.Write(Helper.eLogType.Debug, $"PixelSampling: MeasureCondition result: {res}");
-
-                    // Log the condition details
-                    Helper.Log.Write(Helper.eLogType.Info,
-                        $"PixelSampling: Condition - Width: {_condition.Width}, Height: {_condition.Height}, " +
-                        $"Points: {_condition.ScreenCapturePoints}, PixelDensity: {_condition.PixelDensityX}x{_condition.PixelDensityY}, " +
-                        $"Sleep: {_condition.SleepMS}ms");
-
+                    LogConditionDetails();
                     return true;
                 }
                 else
                 {
                     Helper.Log.Write(Helper.eLogType.Warning,
-                        $"PixelSampling: Tizen 6 API failed with error code {res}, trying Tizen 7+ API");
+                        $"PixelSampling: Tizen 6 API failed with error code {res}, trying next variant");
                 }
             }
             catch (EntryPointNotFoundException)
             {
                 Helper.Log.Write(Helper.eLogType.Debug,
-                    "PixelSampling: Tizen 6 API entry point not found, trying Tizen 7+ API");
+                    "PixelSampling: Tizen 6 API entry point not found, trying next variant");
             }
             catch (DllNotFoundException ex)
             {
@@ -228,7 +275,7 @@ namespace HyperTizen.Capture
             catch (Exception ex)
             {
                 Helper.Log.Write(Helper.eLogType.Warning,
-                    $"PixelSampling: Tizen 6 API exception: {ex.GetType().Name}: {ex.Message}, trying Tizen 7+ API");
+                    $"PixelSampling: Tizen 6 API exception: {ex.GetType().Name}: {ex.Message}, trying next variant");
             }
 
             // Try Tizen 7+ API (ve_get_rgb_measure_condition)
@@ -242,28 +289,99 @@ namespace HyperTizen.Capture
                     _usingTizen7Api = true;
                     Helper.Log.Write(Helper.eLogType.Info, "PixelSampling: Using Tizen 7+ API (ve_*)");
                     Helper.Log.Write(Helper.eLogType.Debug, $"PixelSampling: MeasureCondition7 result: {res}");
-
-                    // Log the condition details
-                    Helper.Log.Write(Helper.eLogType.Info,
-                        $"PixelSampling: Condition - Width: {_condition.Width}, Height: {_condition.Height}, " +
-                        $"Points: {_condition.ScreenCapturePoints}, PixelDensity: {_condition.PixelDensityX}x{_condition.PixelDensityY}, " +
-                        $"Sleep: {_condition.SleepMS}ms");
-
+                    LogConditionDetails();
                     return true;
                 }
                 else
                 {
-                    Helper.Log.Write(Helper.eLogType.Error,
-                        $"PixelSampling: Tizen 7+ API failed with error code {res}");
-                    return false;
+                    Helper.Log.Write(Helper.eLogType.Warning,
+                        $"PixelSampling: Tizen 7+ API failed with error code {res}, trying Tizen 9+ variants");
+                }
+            }
+            catch (EntryPointNotFoundException)
+            {
+                Helper.Log.Write(Helper.eLogType.Debug,
+                    "PixelSampling: Tizen 7+ API entry point not found, trying Tizen 9+ variants");
+            }
+            catch (Exception ex)
+            {
+                Helper.Log.Write(Helper.eLogType.Warning,
+                    $"PixelSampling: Tizen 7+ API exception: {ex.GetType().Name}: {ex.Message}, trying Tizen 9+ variants");
+            }
+
+            // Try Tizen 9+ API variant A (tizen_ve_*)
+            try
+            {
+                Helper.Log.Write(Helper.eLogType.Debug, "PixelSampling: Trying Tizen 9+ API variant A (tizen_ve_*)");
+                res = MeasureCondition9A(out _condition);
+
+                if (res >= 0)
+                {
+                    _usingTizen7Api = true; // Will use the 9A variants in GetColors
+                    Helper.Log.Write(Helper.eLogType.Info, "PixelSampling: Using Tizen 9+ API variant A (tizen_ve_*)");
+                    Helper.Log.Write(Helper.eLogType.Debug, $"PixelSampling: MeasureCondition9A result: {res}");
+                    LogConditionDetails();
+                    return true;
+                }
+            }
+            catch (EntryPointNotFoundException)
+            {
+                Helper.Log.Write(Helper.eLogType.Debug,
+                    "PixelSampling: Tizen 9+ API variant A entry point not found, trying variant B");
+            }
+            catch (Exception ex)
+            {
+                Helper.Log.Write(Helper.eLogType.Debug,
+                    $"PixelSampling: Tizen 9+ API variant A exception: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            // Try Tizen 9+ API variant B (samsung_ve_*)
+            try
+            {
+                Helper.Log.Write(Helper.eLogType.Debug, "PixelSampling: Trying Tizen 9+ API variant B (samsung_ve_*)");
+                res = MeasureCondition9B(out _condition);
+
+                if (res >= 0)
+                {
+                    _usingTizen7Api = true; // Will use the 9B variants in GetColors
+                    Helper.Log.Write(Helper.eLogType.Info, "PixelSampling: Using Tizen 9+ API variant B (samsung_ve_*)");
+                    Helper.Log.Write(Helper.eLogType.Debug, $"PixelSampling: MeasureCondition9B result: {res}");
+                    LogConditionDetails();
+                    return true;
+                }
+            }
+            catch (EntryPointNotFoundException)
+            {
+                Helper.Log.Write(Helper.eLogType.Debug,
+                    "PixelSampling: Tizen 9+ API variant B entry point not found, trying variant C");
+            }
+            catch (Exception ex)
+            {
+                Helper.Log.Write(Helper.eLogType.Debug,
+                    $"PixelSampling: Tizen 9+ API variant B exception: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            // Try Tizen 9+ API variant C (no prefix)
+            try
+            {
+                Helper.Log.Write(Helper.eLogType.Debug, "PixelSampling: Trying Tizen 9+ API variant C (no prefix)");
+                res = MeasureCondition9C(out _condition);
+
+                if (res >= 0)
+                {
+                    _usingTizen7Api = true; // Will use the 9C variants in GetColors
+                    Helper.Log.Write(Helper.eLogType.Info, "PixelSampling: Using Tizen 9+ API variant C (no prefix)");
+                    Helper.Log.Write(Helper.eLogType.Debug, $"PixelSampling: MeasureCondition9C result: {res}");
+                    LogConditionDetails();
+                    return true;
                 }
             }
             catch (EntryPointNotFoundException ex)
             {
                 Helper.Log.Write(Helper.eLogType.Error,
-                    $"PixelSampling: Tizen 7+ API entry point not found: {ex.Message}");
+                    $"PixelSampling: Tizen 9+ API variant C entry point not found: {ex.Message}");
                 Helper.Log.Write(Helper.eLogType.Error,
-                    "PixelSampling: BOTH API variants failed - library incompatible with this Tizen version");
+                    "PixelSampling: ALL API variants failed - library incompatible with this Tizen version");
 
                 // List available entry points for diagnostics
                 LogAvailableEntryPoints();
@@ -273,21 +391,294 @@ namespace HyperTizen.Capture
             catch (Exception ex)
             {
                 Helper.Log.Write(Helper.eLogType.Error,
-                    $"PixelSampling: Tizen 7+ API exception: {ex.GetType().Name}: {ex.Message}");
+                    $"PixelSampling: Tizen 9+ API variant C exception: {ex.GetType().Name}: {ex.Message}");
+
+                // List available entry points for diagnostics
+                LogAvailableEntryPoints();
+
                 return false;
             }
         }
 
         /// <summary>
+        /// Helper method to log condition details
+        /// </summary>
+        private void LogConditionDetails()
+        {
+            Helper.Log.Write(Helper.eLogType.Info,
+                $"PixelSampling: Condition - Width: {_condition.Width}, Height: {_condition.Height}, " +
+                $"Points: {_condition.ScreenCapturePoints}, PixelDensity: {_condition.PixelDensityX}x{_condition.PixelDensityY}, " +
+                $"Sleep: {_condition.SleepMS}ms");
+        }
+
+        /// <summary>
         /// Log available entry points in libvideoenhance.so for diagnostics
-        /// Helps identify what functions are actually available when expected ones are missing
+        /// Uses dlopen/dlsym for programmatic symbol testing (more reliable than nm/readelf on embedded systems)
+        /// Falls back to strings command if dlsym testing fails
         /// </summary>
         private void LogAvailableEntryPoints()
+        {
+            Helper.Log.Write(Helper.eLogType.Info,
+                "PixelSampling: ===== LIBRARY SYMBOL ENUMERATION DIAGNOSTICS =====");
+
+            // First, verify which tools are available on the system
+            LogAvailableTools();
+
+            // Primary method: Use dlopen/dlsym to test specific entry points
+            bool dlopenSuccess = TryDlopenSymbolTest();
+
+            // Fallback method 1: Use strings command (most likely to exist)
+            if (!dlopenSuccess)
+            {
+                TryStringsCommand();
+            }
+
+            // Fallback method 2: Try nm if available
+            TryNmCommand();
+
+            Helper.Log.Write(Helper.eLogType.Info,
+                "PixelSampling: ===== END DIAGNOSTICS =====");
+
+            Helper.Log.Write(Helper.eLogType.Info,
+                "PixelSampling: ACTIONABLE NEXT STEPS:");
+            Helper.Log.Write(Helper.eLogType.Info,
+                "  1. Check diagnostics output above for available symbols");
+            Helper.Log.Write(Helper.eLogType.Info,
+                "  2. If symbols found, add P/Invoke declarations with correct entry point names");
+            Helper.Log.Write(Helper.eLogType.Info,
+                "  3. If no symbols found, libvideoenhance.so may not support RGB pixel sampling on Tizen 9");
+            Helper.Log.Write(Helper.eLogType.Info,
+                "  4. Consider alternative capture methods (TBM/DRM capture for Tizen 8+)");
+        }
+
+        /// <summary>
+        /// Check which diagnostic tools are available on the system
+        /// </summary>
+        private void LogAvailableTools()
+        {
+            Helper.Log.Write(Helper.eLogType.Info, "PixelSampling: Checking available diagnostic tools:");
+
+            string[] tools = { "/usr/bin/nm", "/usr/bin/readelf", "/usr/bin/strings", "/usr/bin/objdump" };
+            foreach (var tool in tools)
+            {
+                bool exists = System.IO.File.Exists(tool);
+                Helper.Log.Write(Helper.eLogType.Info,
+                    $"  {(exists ? "✓" : "✗")} {tool} {(exists ? "available" : "not found")}");
+            }
+        }
+
+        /// <summary>
+        /// Try to test specific entry points using dlopen/dlsym (most reliable method)
+        /// </summary>
+        private bool TryDlopenSymbolTest()
         {
             try
             {
                 Helper.Log.Write(Helper.eLogType.Info,
-                    "PixelSampling: Attempting to list available entry points in libvideoenhance.so");
+                    "PixelSampling: Testing entry points with dlopen/dlsym...");
+
+                // Open the library
+                IntPtr handle = dlopen("/usr/lib/libvideoenhance.so", RTLD_NOW);
+                if (handle == IntPtr.Zero)
+                {
+                    IntPtr errorPtr = dlerror();
+                    string error = errorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(errorPtr) : "Unknown error";
+                    Helper.Log.Write(Helper.eLogType.Error,
+                        $"PixelSampling: dlopen failed: {error}");
+                    return false;
+                }
+
+                // Test known entry point patterns
+                string[] knownSymbols = new string[]
+                {
+                    // Tizen 6/7 variants
+                    "cs_ve_get_rgb_measure_condition",
+                    "cs_ve_set_rgb_measure_position",
+                    "cs_ve_get_rgb_measure_pixel",
+                    "ve_get_rgb_measure_condition",
+                    "ve_set_rgb_measure_position",
+                    "ve_get_rgb_measure_pixel",
+
+                    // Tizen 9+ potential variants
+                    "tizen_ve_get_rgb_measure_condition",
+                    "tizen_ve_set_rgb_measure_position",
+                    "tizen_ve_get_rgb_measure_pixel",
+                    "samsung_ve_get_rgb_measure_condition",
+                    "samsung_ve_set_rgb_measure_position",
+                    "samsung_ve_get_rgb_measure_pixel",
+                    "get_rgb_measure_condition",
+                    "set_rgb_measure_position",
+                    "get_rgb_measure_pixel",
+
+                    // Other potential naming patterns
+                    "ve_rgb_measure_condition_get",
+                    "ve_rgb_measure_position_set",
+                    "ve_rgb_measure_pixel_get",
+                    "videoenhance_get_rgb_condition",
+                    "videoenhance_set_rgb_position",
+                    "videoenhance_get_rgb_pixel",
+
+                    // Completely different naming
+                    "rgb_measure_condition",
+                    "rgb_measure_position",
+                    "rgb_measure_pixel",
+                    "get_condition",
+                    "set_position",
+                    "get_pixel"
+                };
+
+                var foundSymbols = new List<string>();
+                var notFoundSymbols = new List<string>();
+
+                foreach (var symbol in knownSymbols)
+                {
+                    IntPtr sym = dlsym(handle, symbol);
+                    if (sym != IntPtr.Zero)
+                    {
+                        foundSymbols.Add(symbol);
+                    }
+                    else
+                    {
+                        notFoundSymbols.Add(symbol);
+                    }
+                }
+
+                dlclose(handle);
+
+                // Log results
+                if (foundSymbols.Count > 0)
+                {
+                    Helper.Log.Write(Helper.eLogType.Info,
+                        $"PixelSampling: ✓ Found {foundSymbols.Count} entry points:");
+                    foreach (var symbol in foundSymbols)
+                    {
+                        Helper.Log.Write(Helper.eLogType.Info, $"    ✓ {symbol}");
+                    }
+                }
+                else
+                {
+                    Helper.Log.Write(Helper.eLogType.Warning,
+                        "PixelSampling: ✗ NO matching entry points found in test list");
+                }
+
+                Helper.Log.Write(Helper.eLogType.Debug,
+                    $"PixelSampling: {notFoundSymbols.Count} tested symbols not found");
+
+                return foundSymbols.Count > 0;
+            }
+            catch (Exception ex)
+            {
+                Helper.Log.Write(Helper.eLogType.Warning,
+                    $"PixelSampling: dlopen/dlsym test failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to enumerate symbols using strings command (fallback method)
+        /// </summary>
+        private void TryStringsCommand()
+        {
+            try
+            {
+                if (!System.IO.File.Exists("/usr/bin/strings"))
+                {
+                    Helper.Log.Write(Helper.eLogType.Debug,
+                        "PixelSampling: /usr/bin/strings not available, skipping");
+                    return;
+                }
+
+                Helper.Log.Write(Helper.eLogType.Info,
+                    "PixelSampling: Trying strings command for symbol enumeration...");
+
+                var process = new Process();
+                process.StartInfo.FileName = "/usr/bin/strings";
+                process.StartInfo.Arguments = "/usr/lib/libvideoenhance.so";
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = true;
+
+                process.Start();
+                string output = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode != 0)
+                {
+                    Helper.Log.Write(Helper.eLogType.Warning,
+                        $"PixelSampling: strings command failed (exit code {process.ExitCode}): {error}");
+                    return;
+                }
+
+                // Parse output for relevant symbols
+                var lines = output.Split('\n');
+                var relevantSymbols = new List<string>();
+
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    string trimmed = line.Trim();
+
+                    // Look for function-like strings containing relevant keywords
+                    if ((trimmed.Contains("ve") || trimmed.Contains("rgb") || trimmed.Contains("measure") ||
+                         trimmed.Contains("condition") || trimmed.Contains("pixel") || trimmed.Contains("position")) &&
+                        !trimmed.Contains(" ") && trimmed.Length < 100)
+                    {
+                        relevantSymbols.Add(trimmed);
+                    }
+                }
+
+                if (relevantSymbols.Count > 0)
+                {
+                    Helper.Log.Write(Helper.eLogType.Info,
+                        $"PixelSampling: strings found {relevantSymbols.Count} potentially relevant symbols:");
+
+                    int logged = 0;
+                    foreach (var symbol in relevantSymbols)
+                    {
+                        Helper.Log.Write(Helper.eLogType.Info, $"    {symbol}");
+                        logged++;
+
+                        if (logged >= 100)
+                        {
+                            Helper.Log.Write(Helper.eLogType.Info,
+                                $"    ... and {relevantSymbols.Count - logged} more (truncated)");
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    Helper.Log.Write(Helper.eLogType.Warning,
+                        "PixelSampling: strings found no relevant symbols");
+                }
+            }
+            catch (Exception ex)
+            {
+                Helper.Log.Write(Helper.eLogType.Debug,
+                    $"PixelSampling: strings command exception: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Try to enumerate symbols using nm command (fallback method)
+        /// </summary>
+        private void TryNmCommand()
+        {
+            try
+            {
+                if (!System.IO.File.Exists("/usr/bin/nm"))
+                {
+                    Helper.Log.Write(Helper.eLogType.Debug,
+                        "PixelSampling: /usr/bin/nm not available, skipping");
+                    return;
+                }
+
+                Helper.Log.Write(Helper.eLogType.Info,
+                    "PixelSampling: Trying nm command for symbol enumeration...");
 
                 var process = new Process();
                 process.StartInfo.FileName = "/usr/bin/nm";
@@ -298,39 +689,18 @@ namespace HyperTizen.Capture
                 process.StartInfo.CreateNoWindow = true;
 
                 process.Start();
-
                 string output = process.StandardOutput.ReadToEnd();
                 string error = process.StandardError.ReadToEnd();
                 process.WaitForExit();
 
                 if (process.ExitCode != 0)
                 {
-                    // Try fallback with readelf
                     Helper.Log.Write(Helper.eLogType.Debug,
-                        $"PixelSampling: nm failed (code {process.ExitCode}), trying readelf");
-
-                    process = new Process();
-                    process.StartInfo.FileName = "/usr/bin/readelf";
-                    process.StartInfo.Arguments = "-s /usr/lib/libvideoenhance.so";
-                    process.StartInfo.RedirectStandardOutput = true;
-                    process.StartInfo.RedirectStandardError = true;
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.CreateNoWindow = true;
-
-                    process.Start();
-                    output = process.StandardOutput.ReadToEnd();
-                    error = process.StandardError.ReadToEnd();
-                    process.WaitForExit();
-
-                    if (process.ExitCode != 0)
-                    {
-                        Helper.Log.Write(Helper.eLogType.Warning,
-                            "PixelSampling: Could not enumerate library symbols (nm and readelf failed)");
-                        return;
-                    }
+                        $"PixelSampling: nm command failed (exit code {process.ExitCode}): {error}");
+                    return;
                 }
 
-                // Parse and log relevant entry points (those containing "ve_" or "rgb")
+                // Parse output for relevant symbols
                 var lines = output.Split('\n');
                 var relevantSymbols = new List<string>();
 
@@ -339,10 +709,8 @@ namespace HyperTizen.Capture
                     if (string.IsNullOrWhiteSpace(line))
                         continue;
 
-                    // Look for function symbols containing "ve" or "rgb" (case insensitive)
                     if (line.ToLower().Contains("ve") || line.ToLower().Contains("rgb"))
                     {
-                        // Extract just the symbol name (nm format: address type name)
                         var parts = line.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                         if (parts.Length >= 3)
                         {
@@ -358,33 +726,32 @@ namespace HyperTizen.Capture
                 if (relevantSymbols.Count > 0)
                 {
                     Helper.Log.Write(Helper.eLogType.Info,
-                        $"PixelSampling: Found {relevantSymbols.Count} potentially relevant entry points:");
+                        $"PixelSampling: nm found {relevantSymbols.Count} relevant symbols:");
 
                     int logged = 0;
                     foreach (var symbol in relevantSymbols)
                     {
-                        Helper.Log.Write(Helper.eLogType.Info, $"  - {symbol}");
+                        Helper.Log.Write(Helper.eLogType.Info, $"    {symbol}");
                         logged++;
 
-                        // Limit logging to prevent spam
                         if (logged >= 50)
                         {
                             Helper.Log.Write(Helper.eLogType.Info,
-                                $"  ... and {relevantSymbols.Count - logged} more (truncated)");
+                                $"    ... and {relevantSymbols.Count - logged} more (truncated)");
                             break;
                         }
                     }
                 }
                 else
                 {
-                    Helper.Log.Write(Helper.eLogType.Warning,
-                        "PixelSampling: No relevant entry points found containing 've' or 'rgb'");
+                    Helper.Log.Write(Helper.eLogType.Debug,
+                        "PixelSampling: nm found no relevant symbols");
                 }
             }
             catch (Exception ex)
             {
-                Helper.Log.Write(Helper.eLogType.Warning,
-                    $"PixelSampling: Could not enumerate library symbols: {ex.Message}");
+                Helper.Log.Write(Helper.eLogType.Debug,
+                    $"PixelSampling: nm command exception: {ex.Message}");
             }
         }
 
