@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperTizen Control Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #3b3b5e 0%, #2d2d44 100%);
+            padding: 20px 30px;
+            border-bottom: 2px solid #4a4a6e;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .connection-badges {
+            display: flex;
+            gap: 10px;
+        }
+
+        .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .badge.connected {
+            background: #1a3d1a;
+            color: #4ec94e;
+        }
+
+        .badge.connected .dot {
+            background: #4ec94e;
+        }
+
+        .badge.disconnected {
+            background: #3d1a1a;
+            color: #f48771;
+        }
+
+        .badge.disconnected .dot {
+            background: #f48771;
+        }
+
+        .badge.connecting {
+            background: #3d3d1a;
+            color: #d7ba7d;
+        }
+
+        .badge.connecting .dot {
+            background: #d7ba7d;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.9); }
+        }
+
+        .config-bar {
+            background: #2a2a3e;
+            padding: 15px 30px;
+            border-bottom: 1px solid #3e3e52;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .config-bar label {
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #b0b0c0;
+        }
+
+        .config-bar input {
+            background: #1e1e2e;
+            border: 1px solid #4a4a6e;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 160px;
+            transition: border-color 0.3s;
+        }
+
+        .config-bar input:focus {
+            outline: none;
+            border-color: #5e8cc7;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            padding: 20px 30px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: #2a2a3e;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #fff;
+            border-bottom: 2px solid #4a4a6e;
+            padding-bottom: 10px;
+        }
+
+        .control-section {
+            margin-bottom: 20px;
+        }
+
+        .control-section h3 {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: #b0b0c0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.btn-start {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+        }
+
+        button.btn-stop {
+            background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+            color: white;
+        }
+
+        button.btn-pause {
+            background: linear-gradient(135deg, #ff9800 0%, #fb8c00 100%);
+            color: white;
+        }
+
+        button.btn-resume {
+            background: linear-gradient(135deg, #2196f3 0%, #1e88e5 100%);
+            color: white;
+        }
+
+        button.btn-restart {
+            background: linear-gradient(135deg, #9c27b0 0%, #8e24aa 100%);
+            color: white;
+            grid-column: 1 / -1;
+        }
+
+        button.btn-rescan {
+            background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%);
+            color: white;
+        }
+
+        button.btn-apply {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+        }
+
+        button.btn-secondary {
+            background: #3e3e52;
+            color: #e0e0e0;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            background: #1e1e2e;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #3e3e52;
+        }
+
+        .status-item .label {
+            font-size: 11px;
+            color: #888899;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .status-item .value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .device-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            max-height: 200px;
+        }
+
+        .device-item {
+            background: #1e1e2e;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .device-item:hover {
+            border-color: #5e8cc7;
+        }
+
+        .device-item.selected {
+            border-color: #4caf50;
+            background: #1a3d1a;
+        }
+
+        .device-item input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .device-info {
+            flex: 1;
+        }
+
+        .device-name {
+            font-weight: 500;
+            color: #e0e0e0;
+        }
+
+        .device-url {
+            font-size: 11px;
+            color: #888899;
+            display: block;
+            margin-top: 2px;
+        }
+
+        .no-devices {
+            text-align: center;
+            padding: 30px;
+            color: #888899;
+            font-size: 13px;
+        }
+
+        .logs-container {
+            flex: 1;
+            overflow-y: auto;
+            background: #1e1e2e;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 600px;
+        }
+
+        .log-entry {
+            margin: 3px 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .log-entry .timestamp {
+            color: #666677;
+        }
+
+        .log-entry .type {
+            font-weight: bold;
+            margin: 0 6px;
+        }
+
+        .log-entry.debug .type {
+            color: #608b4e;
+        }
+
+        .log-entry.info .type {
+            color: #4ec9b0;
+        }
+
+        .log-entry.warning .type {
+            color: #dcdcaa;
+        }
+
+        .log-entry.error .type {
+            color: #f48771;
+        }
+
+        .logs-footer {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #3e3e52;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #888899;
+        }
+
+        .logs-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        label.checkbox {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1e2e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4a4a6e;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5e5e7e;
+        }
+
+        .rainbow-border {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            border: 4px solid transparent;
+            border-image: linear-gradient(90deg,
+                red, orange, yellow, green, cyan, blue, violet, red
+            ) 1;
+            animation: rainbowShift 3s linear infinite;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 9999;
+        }
+
+        .rainbow-border.active {
+            opacity: 1;
+        }
+
+        @keyframes rainbowShift {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Rainbow border when capturing -->
+    <div id="rainbowBorder" class="rainbow-border"></div>
+
+    <div class="header">
+        <h1>🚀 HyperTizen Control Panel</h1>
+        <div class="header-status">
+            <div class="connection-badges">
+                <div class="badge disconnected" id="controlStatus">
+                    <div class="dot"></div>
+                    <span>Control</span>
+                </div>
+                <div class="badge disconnected" id="logsStatus">
+                    <div class="dot"></div>
+                    <span>Logs</span>
+                </div>
+            </div>
+            <div style="font-size: 12px; color: #888899;">
+                Connect to your TV's IP to control HyperTizen
+            </div>
+        </div>
+    </div>
+
+    <div class="config-bar">
+        <label>
+            TV IP:
+            <input type="text" id="tvIp" placeholder="192.168.1.100">
+        </label>
+        <label>
+            Control Port:
+            <input type="number" id="controlPort" value="45677" style="width: 100px;">
+        </label>
+        <label>
+            Logs Port:
+            <input type="number" id="logsPort" value="45678" style="width: 100px;">
+        </label>
+        <button class="btn-start" onclick="connectAll()">🔌 Connect</button>
+        <button class="btn-secondary" onclick="disconnectAll()">Disconnect</button>
+    </div>
+
+    <div class="main-container">
+        <!-- Left Panel: Control & Status -->
+        <div class="panel">
+            <h2>⚙️ Service Control</h2>
+
+            <div class="control-section">
+                <h3>Capture Control</h3>
+                <div class="control-buttons">
+                    <button class="btn-start" onclick="startCapture()">▶ Start</button>
+                    <button class="btn-stop" onclick="stopCapture()">⏹ Stop</button>
+                    <button class="btn-pause" onclick="pauseCapture()">⏸ Pause</button>
+                    <button class="btn-resume" onclick="resumeCapture()">▶️ Resume</button>
+                    <button class="btn-restart" onclick="restartService()">🔄 Restart Service</button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Service Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="label">State</div>
+                        <div class="value" id="serviceState">Idle</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Connection</div>
+                        <div class="value" id="connState">Disconnected</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Frames</div>
+                        <div class="value" id="framesCaptured">0</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Avg FPS</div>
+                        <div class="value" id="avgFPS">0.0</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Uptime</div>
+                        <div class="value" id="uptime">00:00:00</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="label">Errors</div>
+                        <div class="value" id="errorCount">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>SSDP Devices (<span id="deviceCount">0</span>)</h3>
+                <div class="device-list" id="deviceList">
+                    <div class="no-devices">Click "Rescan" to find devices</div>
+                </div>
+                <div class="control-buttons">
+                    <button class="btn-rescan" onclick="rescanDevices()">🔍 Rescan</button>
+                    <button class="btn-apply" onclick="applyDevices()">✓ Apply</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Logs -->
+        <div class="panel">
+            <h2>📋 Live Logs</h2>
+            <div class="logs-container" id="logsContainer">
+                <div class="log-entry info">
+                    <span class="timestamp">[--:--:--]</span>
+                    <span class="type">[Info]</span>
+                    <span class="message">Waiting for connection...</span>
+                </div>
+            </div>
+            <div class="logs-footer">
+                <div><span id="logCount">1</span> log entries</div>
+                <div class="logs-controls">
+                    <label class="checkbox">
+                        <input type="checkbox" id="autoScroll" checked>
+                        Auto-scroll
+                    </label>
+                    <button class="btn-secondary" onclick="clearLogs()">🗑 Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // WebSocket Management
+        // ============================================================================
+        let controlWS = null;
+        let logsWS = null;
+        let reconnectTimers = { control: null, logs: null };
+        let reconnectAttempts = { control: 0, logs: 0 };
+        let autoReconnectEnabled = true;
+        let logCount = 1;
+        let selectedDevices = new Set();
+        let ssdpDevices = [];
+
+        // Event types (matching C# backend)
+        const Events = {
+            SetConfig: 0,
+            ReadConfig: 1,
+            ReadConfigResult: 2,
+            ScanSSDP: 3,
+            SSDPScanResult: 4,
+            GetLogs: 5,
+            LogsResult: 6,
+            StatusUpdate: 7,
+            PauseCapture: 8,
+            ResumeCapture: 9,
+            GetStatus: 10,
+            StatusResult: 11,
+            RestartService: 12
+        };
+
+        // Load saved settings
+        const savedIp = localStorage.getItem('tvIp');
+        const savedControlPort = localStorage.getItem('controlPort') || '45677';
+        const savedLogsPort = localStorage.getItem('logsPort') || '45678';
+
+        if (savedIp) {
+            document.getElementById('tvIp').value = savedIp;
+            document.getElementById('controlPort').value = savedControlPort;
+            document.getElementById('logsPort').value = savedLogsPort;
+            setTimeout(() => connectAll(), 1000);
+        }
+
+        function connectAll() {
+            const ip = document.getElementById('tvIp').value.trim();
+            if (!ip) {
+                alert('Please enter TV IP address');
+                return;
+            }
+
+            // Save settings
+            localStorage.setItem('tvIp', ip);
+            localStorage.setItem('controlPort', document.getElementById('controlPort').value);
+            localStorage.setItem('logsPort', document.getElementById('logsPort').value);
+
+            autoReconnectEnabled = true;
+            connectControl();
+            connectLogs();
+        }
+
+        function disconnectAll() {
+            autoReconnectEnabled = false;
+            if (controlWS) controlWS.close();
+            if (logsWS) logsWS.close();
+            clearTimeout(reconnectTimers.control);
+            clearTimeout(reconnectTimers.logs);
+            updateBadge('controlStatus', 'disconnected');
+            updateBadge('logsStatus', 'disconnected');
+        }
+
+        function connectControl() {
+            const ip = document.getElementById('tvIp').value.trim();
+            const port = document.getElementById('controlPort').value.trim();
+            const url = `ws://${ip}:${port}`;
+
+            if (controlWS) controlWS.close();
+            clearTimeout(reconnectTimers.control);
+
+            updateBadge('controlStatus', 'connecting');
+            addLog('Info', `Connecting to control WebSocket: ${url}`);
+
+            try {
+                controlWS = new WebSocket(url);
+
+                controlWS.onopen = () => {
+                    updateBadge('controlStatus', 'connected');
+                    addLog('Info', '✓ Control WebSocket connected');
+                    reconnectAttempts.control = 0;
+
+                    // Request initial status
+                    send({ Event: Events.GetStatus });
+                    send({ Event: Events.ScanSSDP });
+                };
+
+                controlWS.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleControlMessage(data);
+                    } catch (e) {
+                        console.error('Error parsing control message:', e);
+                    }
+                };
+
+                controlWS.onerror = (error) => {
+                    addLog('Error', 'Control WebSocket error');
+                };
+
+                controlWS.onclose = () => {
+                    updateBadge('controlStatus', 'disconnected');
+                    addLog('Warning', 'Control WebSocket disconnected');
+                    scheduleReconnect('control');
+                };
+            } catch (e) {
+                addLog('Error', `Failed to connect: ${e.message}`);
+                scheduleReconnect('control');
+            }
+        }
+
+        function connectLogs() {
+            const ip = document.getElementById('tvIp').value.trim();
+            const port = document.getElementById('logsPort').value.trim();
+            const url = `ws://${ip}:${port}`;
+
+            if (logsWS) logsWS.close();
+            clearTimeout(reconnectTimers.logs);
+
+            updateBadge('logsStatus', 'connecting');
+            addLog('Info', `Connecting to logs WebSocket: ${url}`);
+
+            try {
+                logsWS = new WebSocket(url);
+
+                logsWS.onopen = () => {
+                    updateBadge('logsStatus', 'connected');
+                    addLog('Info', '✓ Logs WebSocket connected');
+                    reconnectAttempts.logs = 0;
+                };
+
+                logsWS.onmessage = (event) => {
+                    parseAndAddLog(event.data);
+                };
+
+                logsWS.onerror = (error) => {
+                    console.error('Logs WebSocket error:', error);
+                };
+
+                logsWS.onclose = () => {
+                    updateBadge('logsStatus', 'disconnected');
+                    addLog('Warning', 'Logs WebSocket disconnected');
+                    scheduleReconnect('logs');
+                };
+            } catch (e) {
+                addLog('Error', `Failed to connect: ${e.message}`);
+                scheduleReconnect('logs');
+            }
+        }
+
+        function scheduleReconnect(type) {
+            if (!autoReconnectEnabled) return;
+            if (reconnectTimers[type]) return;
+
+            reconnectAttempts[type]++;
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts[type] - 1), 30000);
+
+            addLog('Info', `Reconnecting ${type} in ${(delay / 1000).toFixed(1)}s (attempt ${reconnectAttempts[type]})`);
+
+            reconnectTimers[type] = setTimeout(() => {
+                reconnectTimers[type] = null;
+                if (type === 'control') connectControl();
+                else connectLogs();
+            }, delay);
+        }
+
+        function send(message) {
+            if (controlWS && controlWS.readyState === WebSocket.OPEN) {
+                controlWS.send(JSON.stringify(message));
+            } else {
+                addLog('Warning', 'Control WebSocket not connected');
+            }
+        }
+
+        function updateBadge(id, status) {
+            const badge = document.getElementById(id);
+            badge.className = `badge ${status}`;
+        }
+
+        // ============================================================================
+        // Message Handlers
+        // ============================================================================
+
+        function handleControlMessage(data) {
+            switch (data.Event) {
+                case Events.StatusUpdate:
+                    handleStatusUpdate(data);
+                    break;
+                case Events.StatusResult:
+                    handleStatusResult(data);
+                    break;
+                case Events.SSDPScanResult:
+                    handleSSDPResult(data);
+                    break;
+                case Events.ReadConfigResult:
+                    addLog('Info', `Config: ${data.key} = ${data.value}`);
+                    break;
+                default:
+                    console.log('Unknown event:', data);
+            }
+        }
+
+        function handleStatusUpdate(data) {
+            addLog('Info', `Status: ${data.status} - ${data.message}`);
+
+            if (data.status === 'capturing') {
+                setRainbow(true);
+                updateStatus('serviceState', 'Capturing');
+            } else {
+                setRainbow(false);
+                updateStatus('serviceState', data.status || 'Idle');
+            }
+        }
+
+        function handleStatusResult(data) {
+            updateStatus('serviceState', data.state || 'Unknown');
+            updateStatus('connState', data.isConnected ? 'Connected' : 'Disconnected');
+            updateStatus('framesCaptured', (data.framesCaptured || 0).toLocaleString());
+            updateStatus('avgFPS', (data.averageFPS || 0).toFixed(1));
+            updateStatus('errorCount', (data.errorCount || 0).toString());
+            updateStatus('uptime', data.uptime || '00:00:00');
+
+            if (data.state === 'Capturing') {
+                setRainbow(true);
+            } else {
+                setRainbow(false);
+            }
+        }
+
+        function handleSSDPResult(data) {
+            if (!data.devices || !Array.isArray(data.devices)) {
+                addLog('Warning', 'Invalid SSDP result');
+                return;
+            }
+
+            addLog('Info', `Found ${data.devices.length} SSDP device(s)`);
+            ssdpDevices = data.devices;
+
+            const deviceList = document.getElementById('deviceList');
+            deviceList.innerHTML = '';
+
+            if (data.devices.length === 0) {
+                deviceList.innerHTML = '<div class="no-devices">No devices found</div>';
+                document.getElementById('deviceCount').textContent = '0';
+                return;
+            }
+
+            data.devices.forEach((device, index) => {
+                const url = device.UrlBase.replace('http', 'ws').replace('https', 'wss');
+
+                const item = document.createElement('div');
+                item.className = 'device-item';
+                if (selectedDevices.has(url)) item.classList.add('selected');
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = selectedDevices.has(url);
+                checkbox.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleDevice(url, item);
+                };
+
+                const info = document.createElement('div');
+                info.className = 'device-info';
+                info.innerHTML = `
+                    <div class="device-name">${device.FriendlyName}</div>
+                    <div class="device-url">${url}</div>
+                `;
+
+                item.appendChild(checkbox);
+                item.appendChild(info);
+                item.onclick = () => {
+                    checkbox.checked = !checkbox.checked;
+                    toggleDevice(url, item);
+                };
+
+                deviceList.appendChild(item);
+            });
+
+            document.getElementById('deviceCount').textContent = data.devices.length.toString();
+        }
+
+        function toggleDevice(url, item) {
+            if (selectedDevices.has(url)) {
+                selectedDevices.delete(url);
+                item.classList.remove('selected');
+            } else {
+                selectedDevices.add(url);
+                item.classList.add('selected');
+            }
+        }
+
+        // ============================================================================
+        // Control Functions
+        // ============================================================================
+
+        function startCapture() {
+            addLog('Info', 'Starting capture...');
+            send({ Event: Events.SetConfig, key: 'enabled', value: 'true' });
+        }
+
+        function stopCapture() {
+            addLog('Info', 'Stopping capture...');
+            send({ Event: Events.SetConfig, key: 'enabled', value: 'false' });
+        }
+
+        function pauseCapture() {
+            addLog('Info', 'Pausing capture...');
+            send({ Event: Events.PauseCapture });
+        }
+
+        function resumeCapture() {
+            addLog('Info', 'Resuming capture...');
+            send({ Event: Events.ResumeCapture });
+        }
+
+        function restartService() {
+            addLog('Info', 'Restarting service...');
+            send({ Event: Events.RestartService });
+        }
+
+        function rescanDevices() {
+            addLog('Info', 'Rescanning SSDP devices...');
+            send({ Event: Events.ScanSSDP });
+        }
+
+        function applyDevices() {
+            if (selectedDevices.size === 0) {
+                addLog('Warning', 'No devices selected');
+                return;
+            }
+
+            const url = Array.from(selectedDevices)[0];
+            addLog('Info', `Applying device: ${url}`);
+            send({ Event: Events.SetConfig, key: 'rpcServer', value: url });
+        }
+
+        // ============================================================================
+        // UI Functions
+        // ============================================================================
+
+        function updateStatus(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
+
+        function setRainbow(active) {
+            const border = document.getElementById('rainbowBorder');
+            if (active) {
+                border.classList.add('active');
+            } else {
+                border.classList.remove('active');
+            }
+        }
+
+        function parseAndAddLog(message) {
+            const match = message.match(/\[(\d{2}:\d{2}:\d{2})\]\s*\[(\w+)\]\s*(.*)/);
+            if (match) {
+                const [, timestamp, type, text] = match;
+                addLogEntry(timestamp, type, text);
+            } else {
+                const now = new Date();
+                const timestamp = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+                addLogEntry(timestamp, 'Info', message);
+            }
+        }
+
+        function addLog(type, message) {
+            const now = new Date();
+            const timestamp = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            addLogEntry(timestamp, type, message);
+        }
+
+        function addLogEntry(timestamp, type, message) {
+            const container = document.getElementById('logsContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type.toLowerCase()}`;
+            entry.innerHTML = `
+                <span class="timestamp">[${timestamp}]</span>
+                <span class="type">[${type}]</span>
+                <span class="message">${message}</span>
+            `;
+
+            container.appendChild(entry);
+            logCount++;
+            document.getElementById('logCount').textContent = logCount;
+
+            if (document.getElementById('autoScroll').checked) {
+                container.scrollTop = container.scrollHeight;
+            }
+
+            // Keep last 500 logs
+            const entries = container.getElementsByClassName('log-entry');
+            while (entries.length > 500) {
+                container.removeChild(entries[0]);
+                logCount--;
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logsContainer').innerHTML = '';
+            logCount = 0;
+            document.getElementById('logCount').textContent = '0';
+            addLog('Info', 'Logs cleared');
+        }
+
+        function pad(num) {
+            return num.toString().padStart(2, '0');
+        }
+
+        // ============================================================================
+        // Periodic Updates
+        // ============================================================================
+
+        setInterval(() => {
+            if (controlWS && controlWS.readyState === WebSocket.OPEN) {
+                send({ Event: Events.GetStatus });
+            }
+        }, 5000);
+
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            if (controlWS) controlWS.close();
+            if (logsWS) logsWS.close();
+        });
+    </script>
+</body>
+</html>

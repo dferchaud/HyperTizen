@@ -4,78 +4,384 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HyperTizen</title>
+    <title>HyperTizen Control Center</title>
     <link rel="stylesheet" href="main.css">
     <script src="js/wsClient.js"></script>
     <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
 </head>
 
 <body>
-    <div class="content">
-        <h1>HyperTizen</h1>
-        <h3 id="status">Status</h3>
-        <a><input type="checkbox" id="enabled"> Enabled</a>
-        <h2 id="ssdpDeviceTitle">SSDP Devices</h2>
-        <div id="ssdpItems"></div>
+    <!-- Rainbow border animation (active when capturing) -->
+    <div id="rainbowBorder" class="rainbow-border"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚀 HyperTizen Control Center</h1>
+            <div class="status-indicator" id="captureStatus">
+                <div class="indicator-dot"></div>
+                <span id="captureStatusText">Ready</span>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+
+            <!-- Left Column: Service Control & SSDP Devices -->
+            <div class="left-column">
+
+                <!-- Service Control Section -->
+                <div class="section service-control">
+                    <h2>Service Control</h2>
+                    <div class="control-buttons">
+                        <button class="btn btn-start" id="btnStart" tabindex="1">
+                            ▶ Start Capture
+                        </button>
+                        <button class="btn btn-stop" id="btnStop" tabindex="2">
+                            ⏹ Stop Capture
+                        </button>
+                        <button class="btn btn-pause" id="btnPause" tabindex="3">
+                            ⏸ Pause
+                        </button>
+                        <button class="btn btn-resume" id="btnResume" tabindex="4">
+                            ▶️ Resume
+                        </button>
+                        <button class="btn btn-restart" id="btnRestart" tabindex="5">
+                            🔄 Restart Service
+                        </button>
+                    </div>
+                    <div class="service-status">
+                        <div class="status-row">
+                            <span class="label">State:</span>
+                            <span id="serviceState" class="value">Unknown</span>
+                        </div>
+                        <div class="status-row">
+                            <span class="label">Connection:</span>
+                            <span id="connectionStatus" class="value">Disconnected</span>
+                        </div>
+                        <div class="status-row">
+                            <span class="label">Frames:</span>
+                            <span id="framesCaptured" class="value">0</span>
+                        </div>
+                        <div class="status-row">
+                            <span class="label">Avg FPS:</span>
+                            <span id="averageFPS" class="value">0.0</span>
+                        </div>
+                        <div class="status-row">
+                            <span class="label">Uptime:</span>
+                            <span id="uptime" class="value">00:00:00</span>
+                        </div>
+                        <div class="status-row">
+                            <span class="label">Errors:</span>
+                            <span id="errorCount" class="value">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SSDP Devices Section -->
+                <div class="section ssdp-devices">
+                    <h2>SSDP Devices</h2>
+                    <div class="ssdp-info">
+                        <span id="ssdpCount">0</span> device(s) found
+                    </div>
+                    <div class="device-list" id="deviceList">
+                        <div class="no-devices">
+                            Scanning for Hyperion/HyperHDR devices...
+                        </div>
+                    </div>
+                    <div class="ssdp-actions">
+                        <button class="btn btn-small" id="btnRescan" tabindex="6">
+                            🔍 Rescan
+                        </button>
+                        <button class="btn btn-small btn-primary" id="btnApplyDevices" tabindex="7">
+                            ✓ Apply Selection
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Logs -->
+            <div class="right-column">
+                <div class="section logs-section">
+                    <div class="logs-header">
+                        <h2>Live Logs</h2>
+                        <div class="logs-controls">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="autoScroll" checked>
+                                <span>Auto-scroll</span>
+                            </label>
+                            <button class="btn btn-small" id="btnClearLogs" tabindex="8">
+                                🗑 Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="logs-container" id="logsContainer">
+                        <div class="log-entry info">
+                            <span class="timestamp">[--:--:--]</span>
+                            <span class="type">[Info]</span>
+                            <span class="message">Connecting to HyperTizen service...</span>
+                        </div>
+                    </div>
+                    <div class="logs-footer">
+                        <span id="logCount">1</span> log entries
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-info">
+                <span id="versionInfo">HyperTizen UI v... | Tizen 8.0+ Fork</span>
+                <span class="separator">•</span>
+                <span id="wsStatus">WebSocket: Disconnected</span>
+            </div>
+            <div class="footer-help">
+                <kbd>↑</kbd> <kbd>↓</kbd> Navigate | <kbd>Enter</kbd> Select | <kbd>Back</kbd> Exit | <kbd>Menu</kbd> TV Settings
+            </div>
+        </div>
     </div>
-</body>
 
-<script>
-    window.onload = function () {
-        let elements = document.querySelectorAll('button, input, [tabindex]');
-        let elementsArray = Array.prototype.slice.call(elements);
-        let focusedElement = document.activeElement;
-        let focusedIndex = elementsArray.indexOf(focusedElement);
+    <script>
+        // Load version from package.json
+        function loadVersion() {
+            fetch('package.json')
+                .then(res => res.json())
+                .then(pkg => {
+                    const versionInfo = document.getElementById('versionInfo');
+                    if (versionInfo) {
+                        versionInfo.textContent = `HyperTizen UI v${pkg.version} | Tizen 8.0+ Fork`;
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to load version from package.json:', err);
+                    // Fallback to hardcoded version
+                    const versionInfo = document.getElementById('versionInfo');
+                    if (versionInfo) {
+                        versionInfo.textContent = 'HyperTizen UI v1.2.0 | Tizen 8.0+ Fork';
+                    }
+                });
+        }
 
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                if (focusedIndex < elementsArray.length - 1) {
-                    elementsArray[focusedIndex + 1].focus();
-                    focusedIndex++;
-                }
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                if (focusedIndex > 0) {
-                    elementsArray[focusedIndex - 1].focus();
-                    focusedIndex--;
-                }
-            } else if (e.key == 'Enter') {
-                e.preventDefault();
-                const element = elementsArray[focusedIndex];
-                element.click();
-                if (element.classList.contains('ssdpItem')) {
-                    const uri = element.getAttribute('data-uri');
-                    setRPC(uri);
+        // Initialize the application
+        window.onload = function () {
+            // Load version from package.json
+            loadVersion();
+
+            // Focus management for remote control
+            setupFocusManagement();
+
+            // Get device IP and initialize WebSocket connections
+            fetch('http://127.0.0.1:8081')
+                .then(res => res.text())
+                .then(ip => {
+                    window.deviceIP = ip;
+                    initializeApp(ip);
+                })
+                .catch(err => {
+                    console.error('Failed to get device IP:', err);
+                    addLog('Error', 'Failed to get device IP. Retrying...');
+                    setTimeout(() => location.reload(), 3000);
+                });
+        };
+
+        function setupFocusManagement() {
+            let focusableElements = [];
+            let currentFocusIndex = -1;
+
+            function updateFocusableElements() {
+                // Get all focusable elements in document order
+                focusableElements = Array.from(
+                    document.querySelectorAll('button:not([disabled]), input[type="checkbox"], .device-item')
+                );
+
+                // If current element is no longer focusable, reset index
+                if (currentFocusIndex >= focusableElements.length) {
+                    currentFocusIndex = focusableElements.length - 1;
                 }
             }
-        });
 
-        const observer = new MutationObserver(function (mutations) {
-            mutations.forEach(function (mutation) {
-                if (mutation.addedNodes.length > 0) {
-                    elements = document.querySelectorAll('button, input, [tabindex]');
-                    elementsArray = Array.prototype.slice.call(elements);
-                    focusedIndex = elementsArray.indexOf(document.activeElement);
+            function focusElement(index) {
+                if (index >= 0 && index < focusableElements.length) {
+                    focusableElements[index].focus();
+                    currentFocusIndex = index;
+
+                    // Scroll element into view if needed
+                    focusableElements[index].scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'nearest'
+                    });
+                }
+            }
+
+            // Samsung TV special key codes that should always pass through
+            const TV_SYSTEM_KEYS = [
+                10009,  // Back
+                10182,  // Exit
+                10133,  // Menu
+                10135,  // Tools/Settings
+                457,    // Info
+                10221,  // Home
+                10252,  // Play/Pause
+                413,    // Stop
+                412,    // Rewind
+                417,    // Fast Forward
+                404,    // Red button
+                405,    // Green button
+                406,    // Yellow button
+                407,    // Blue button
+                427, 428, 429, 430, 431, 432, 433, 434, 435, 436  // Number keys 0-9
+            ];
+
+            // Handle keyboard navigation for TV remote
+            document.addEventListener('keydown', function (e) {
+                const key = e.keyCode || e.which;
+
+                // Allow all TV system keys to pass through without interference
+                if (TV_SYSTEM_KEYS.includes(key)) {
+                    return; // Don't prevent default, let TV handle it
+                }
+
+                // Only handle navigation if we're focused on our app elements
+                const activeElement = document.activeElement;
+                const isAppElement = activeElement && (
+                    activeElement.tagName === 'BUTTON' ||
+                    activeElement.tagName === 'INPUT' ||
+                    activeElement.classList.contains('device-item') ||
+                    activeElement === document.body
+                );
+
+                // If focus is outside our app or on system UI, don't interfere
+                if (!isAppElement) {
+                    return;
+                }
+
+                updateFocusableElements();
+
+                // Initialize focus if not set and user presses navigation key
+                if (currentFocusIndex === -1 && focusableElements.length > 0) {
+                    const navKeys = [37, 38, 39, 40, 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+                    if (navKeys.includes(e.key) || navKeys.includes(key)) {
+                        currentFocusIndex = 0;
+                        focusElement(0);
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                    return;
+                }
+
+                switch (e.key || key) {
+                    case 'ArrowDown':
+                    case 40: // Down arrow keyCode
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (currentFocusIndex < focusableElements.length - 1) {
+                            focusElement(currentFocusIndex + 1);
+                        } else {
+                            // Wrap to first element
+                            focusElement(0);
+                        }
+                        break;
+
+                    case 'ArrowUp':
+                    case 38: // Up arrow keyCode
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (currentFocusIndex > 0) {
+                            focusElement(currentFocusIndex - 1);
+                        } else {
+                            // Wrap to last element
+                            focusElement(focusableElements.length - 1);
+                        }
+                        break;
+
+                    case 'ArrowLeft':
+                    case 37: // Left arrow keyCode
+                        // Only prevent default if we're using it for navigation
+                        // Otherwise let it bubble for potential system use
+                        break;
+
+                    case 'ArrowRight':
+                    case 39: // Right arrow keyCode
+                        // Only prevent default if we're using it for navigation
+                        // Otherwise let it bubble for potential system use
+                        break;
+
+                    case 'Enter':
+                    case 13: // Enter keyCode
+                        // Only handle Enter if we have a focused app element
+                        if (currentFocusIndex >= 0 && currentFocusIndex < focusableElements.length) {
+                            const element = focusableElements[currentFocusIndex];
+
+                            // Only prevent default if we're actually handling it
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            // Special handling for checkboxes
+                            if (element.type === 'checkbox') {
+                                element.checked = !element.checked;
+                                // Trigger change event
+                                const event = new Event('change', { bubbles: true });
+                                element.dispatchEvent(event);
+                            } else {
+                                // For buttons and other elements, trigger click
+                                element.click();
+                            }
+                        }
+                        break;
                 }
             });
-        });
 
-        observer.observe(document.body, { childList: true, subtree: true });
-        fetch('http://127.0.0.1:8081').then(res => res.text()).then(ip => {
-            deviceIP = ip;
+            // Track focus changes
+            document.addEventListener('focus', function (e) {
+                updateFocusableElements();
+                const index = focusableElements.indexOf(e.target);
+                if (index !== -1) {
+                    currentFocusIndex = index;
+                }
+            }, true);
 
-            const testWS = new WebSocket(`ws://${ip}:8086`);
+            // Track active element changes
+            document.addEventListener('blur', function (e) {
+                // Update focusable elements when something loses focus
+                updateFocusableElements();
+            }, true);
 
-            testWS.onopen = function () {
-                testWS.close();
-                open();
+            // Initialize focus on first button
+            setTimeout(() => {
+                updateFocusableElements();
+                if (focusableElements.length > 0) {
+                    focusElement(0);
+                }
+            }, 100);
+
+            // Observe DOM changes to update focusable elements
+            const observer = new MutationObserver(() => {
+                const previousLength = focusableElements.length;
+                updateFocusableElements();
+
+                // If new elements were added and we had no focus, focus the first one
+                if (previousLength === 0 && focusableElements.length > 0 && currentFocusIndex === -1) {
+                    focusElement(0);
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['disabled']
+            });
+
+            // Store in window for debugging
+            window.focusDebug = {
+                getFocusableElements: () => focusableElements,
+                getCurrentIndex: () => currentFocusIndex,
+                focusElement: focusElement
             };
-            testWS.onerror = function () {
-                location.reload();
-            };
-        });
-    };
-</script>
+        }
+    </script>
+</body>
 
 </html>

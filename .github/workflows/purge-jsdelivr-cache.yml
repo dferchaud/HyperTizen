@@ -1,0 +1,19 @@
+name: Purge jsDelivr Cache
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'HyperTizenUI/**'
+  workflow_dispatch:
+
+jobs:
+  purge-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - name: jsDelivr Cache Purge
+        uses: kaycodes13/purge-jsdelivr-cache@v1.1.0
+        with:
+          url: |
+            https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/*

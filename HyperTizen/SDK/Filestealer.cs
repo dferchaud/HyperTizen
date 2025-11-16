@@ -10,31 +10,42 @@ using HyperTizen.Helper;
 
 namespace HyperTizen.SDK
 {
-    //Credits to Leonardo Rodrigues for this way to download Tizen Operating System files to USB
-    //Tested only on Tizen 8 yet
+    /// <summary>
+    /// Credits to Leonardo Rodrigues for this way to download Tizen Operating System files to USB
+    /// Tested on Tizen 8+. Now supports Tizen 9.
+    /// This tool recursively scans /usr/bin and copies OS files to USB for research purposes.
+    /// </summary>
     public static class Filestealer
     {
+        private static int _filesScanned = 0;
+        private static int _filesCopied = 0;
+        private static int _filesBlocked = 0;
+        private static int _symlinks = 0;
+
         private static void ScanDirectory(string dir, [NotNull] Action<string, byte[]> action)
         {
             try
             {
                 foreach (string file in Directory.EnumerateFiles(dir))
                 {
+                    _filesScanned++;
                     try
                     {
                         FileInfo fileInfo = new FileInfo(file);
 
                         if ((fileInfo.Attributes & FileAttributes.ReparsePoint) != 0)
                         {
+                            _symlinks++;
                             action(file + ".symlink", null);
-
                             continue;
                         }
 
                         action(file, File.ReadAllBytes(file));
+                        _filesCopied++;
                     }
                     catch
                     {
+                        _filesBlocked++;
                         action(file + ".blocked", null);
                     }
                 }
@@ -53,48 +64,89 @@ namespace HyperTizen.SDK
             }
             catch { }
         }
-        public static void CopyToUsb()
+        /// <summary>
+        /// Copy Tizen OS files from /usr/bin to USB drive asynchronously
+        /// Returns a Task that completes when the operation is finished
+        /// </summary>
+        public static async Task CopyToUsbAsync()
         {
-            _ = Task.Run(() =>
-            {
+            // Reset counters
+            _filesScanned = 0;
+            _filesCopied = 0;
+            _filesBlocked = 0;
+            _symlinks = 0;
 
+            await Task.Run(() =>
+            {
                 try
                 {
+                    Log.Write(eLogType.Info, "=== FILESTEALER: Starting USB copy operation ===");
+                    Log.Write(eLogType.Info, "Source: /usr/bin");
+                    Log.Write(eLogType.Info, "Target: /opt/media/USBDriveA1");
+                    Log.Write(eLogType.Info, "");
+
                     ScanDirectory("/usr/bin", (file, bytes) =>
+                    {
+                        try
                         {
-                            try
+                            string fileRelative = file.TrimStart(Path.DirectorySeparatorChar);
+                            string fileTarget = Path.Combine(
+                                "/opt/media/USBDriveA1",
+                                fileRelative
+                            );
+
+                            string fileTargetDir = Path.GetDirectoryName(fileTarget);
+
+                            if (!Directory.Exists(fileTargetDir))
                             {
-                                Log.Write(eLogType.Debug,$"- Downloading: {file}");
-
-                                string fileRelative = file.TrimStart(Path.DirectorySeparatorChar);
-                                string fileTarget = Path.Combine(
-                                    "/opt/media/USBDriveA1",
-                                    fileRelative
-                                );
-
-                                string fileTargetDir = Path.GetDirectoryName(fileTarget);
-
-                                if (!Directory.Exists(fileTargetDir))
-                                {
-                                    _ = Directory.CreateDirectory(fileTargetDir);
-                                }
-
-                                File.WriteAllBytes(fileTarget, bytes);
+                                _ = Directory.CreateDirectory(fileTargetDir);
                             }
-                            catch (Exception ex)
+
+                            if (bytes != null)
                             {
-                                Log.Write(eLogType.Debug,ex.ToString());
+                                File.WriteAllBytes(fileTarget, bytes);
+
+                                // Log progress every 100 files
+                                if (_filesCopied % 100 == 0)
+                                {
+                                    Log.Write(eLogType.Info,
+                                        $"Progress: {_filesCopied} files copied, {_filesBlocked} blocked, {_symlinks} symlinks");
+                                }
+                            }
+                            else
+                            {
+                                // Create empty marker file for symlinks/blocked files
+                                File.WriteAllText(fileTarget, "");
                             }
                         }
-                    );
+                        catch (Exception ex)
+                        {
+                            Log.Write(eLogType.Debug, $"Error copying {file}: {ex.Message}");
+                        }
+                    });
 
-                    Log.Write(eLogType.Debug, "Scan finished!");
+                    Log.Write(eLogType.Info, "");
+                    Log.Write(eLogType.Info, "=== FILESTEALER: Scan completed! ===");
+                    Log.Write(eLogType.Info, $"Total files scanned: {_filesScanned}");
+                    Log.Write(eLogType.Info, $"Files successfully copied: {_filesCopied}");
+                    Log.Write(eLogType.Info, $"Files blocked (permissions): {_filesBlocked}");
+                    Log.Write(eLogType.Info, $"Symlinks found: {_symlinks}");
+                    Log.Write(eLogType.Info, "");
                 }
                 catch (Exception ex)
                 {
-                    Log.Write(eLogType.Debug, ex.ToString());
+                    Log.Write(eLogType.Error, $"FILESTEALER ERROR: {ex.Message}");
+                    Log.Write(eLogType.Error, $"Stack trace: {ex.StackTrace}");
                 }
             });
+        }
+
+        /// <summary>
+        /// Legacy synchronous wrapper for backward compatibility
+        /// </summary>
+        public static void CopyToUsb()
+        {
+            _ = CopyToUsbAsync();
         }
     }
 }

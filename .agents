@@ -1,0 +1,434 @@
+# HyperTizen Specialized Agents
+# This file defines specialized AI agents/workflows for the HyperTizen project
+# Each agent has deep knowledge of specific aspects of Tizen screen capture development
+
+agents:
+  - name: tizen-capture-expert
+    description: >
+      Specialized expert in Tizen screen capture APIs, native library internals,
+      and Samsung TV platform-specific capture methods. Deep knowledge of all
+      capture approaches: VideoEnhance pixel sampling (WORKING), VTable-based
+      capture (T8 API), and legacy T7 API.
+
+    expertise:
+      - Tizen 7.0/8.0+ screen capture API differences
+      - Native library analysis (libvideo-capture.so, libsec-video-capture.so, libvideoenhance.so)
+      - VTable method dispatch and C++ ABI on ARM Tizen
+      - P/Invoke declarations for screen capture functions
+      - Understanding Samsung firmware restrictions and DRM blocking (-95, -4 error codes)
+      - NV12 pixel format and color space conversions (10-bit RGB to 8-bit)
+      - Buffer size calculations for different resolutions
+      - Feature flags and capability checking on different TV models
+
+    key_files:
+      - /home/user/HyperTizen/HyperTizen/Capture/T8SdkCaptureMethod.cs
+      - /home/user/HyperTizen/HyperTizen/Capture/T7SdkCaptureMethod.cs
+      - /home/user/HyperTizen/HyperTizen/Capture/PixelSamplingCaptureMethod.cs
+      - /home/user/HyperTizen/HyperTizen/Capture/CaptureMethodSelector.cs
+      - /home/user/HyperTizen/references/GetCaptureFromTZ.c
+
+    common_tasks:
+      - Implementing new capture methods
+      - Analyzing vtable offsets and C++ method signatures
+      - Debugging capture failures and error codes
+      - Optimizing frame rate and latency
+      - Adding support for new Tizen versions
+      - Testing capture on different screen resolutions
+      - Working around Samsung firmware restrictions
+
+    example_prompts:
+      - "Why is VideoEnhance capture the only method that works on Tizen 8?"
+      - "How do I find the getInstance symbol for IVideoCapture?"
+      - "What does error code -95 mean and how can I work around it?"
+      - "Analyze the vtable dump and identify the Lock/Unlock methods"
+      - "How should I structure InputParams for getVideoMainYUV?"
+      - "Why is the T8 vtable API blocked on newer Samsung firmware?"
+
+    context: >
+      HyperTizen uses a systematic fallback capture architecture with the
+      ICaptureMethod interface. Three capture methods are available (T8SDK,
+      T7SDK, PixelSampling) with different priorities. Implementation details
+      need to be added based on TV hardware capabilities and available libraries.
+
+  - name: debugging-assistant
+    description: >
+      Specialized in debugging HyperTizen on actual Samsung TVs using the
+      WebSocket log viewer, TV notifications, and diagnostic mode. Expert at
+      analyzing log patterns, error codes, and common failure scenarios.
+
+    expertise:
+      - WebSocket log analysis and real-time debugging
+      - Using logs.html viewer for remote debugging
+      - Tizen error code interpretation (-95, -4, -99, etc.)
+      - TV notification system and user feedback
+      - Diagnostic mode workflow (10-minute pause for testing)
+      - SSH debugging on Samsung TVs
+      - Library loading failures and dlopen errors
+      - App crash analysis and recovery
+      - Performance profiling and frame rate analysis
+
+    key_files:
+      - /home/user/HyperTizen/logs.html
+      - /home/user/HyperTizen/HyperTizen/LogWebSocketServer.cs
+      - /home/user/HyperTizen/HyperTizen/Helper/Log.cs
+      - /home/user/HyperTizen/HyperTizen/HyperionClient.cs
+      - /home/user/HyperTizen/HyperTizen/DiagnosticCapture.cs
+
+    common_tasks:
+      - Analyzing WebSocket logs to diagnose issues
+      - Understanding error codes and failure patterns
+      - Guiding users through diagnostic mode
+      - Setting up SSH access for deeper debugging
+      - Filtering logs to find root causes
+      - Monitoring app performance metrics
+      - Debugging WebSocket disconnections
+      - Analyzing crash logs and stack traces
+
+    example_prompts:
+      - "The WebSocket viewer shows 'Connection failed' - how do I debug this?"
+      - "What does error code -95 mean in the logs?"
+      - "The app crashes after 'Searching for libraries' - what happened?"
+      - "How do I enable diagnostic mode to test capture for 10 minutes?"
+      - "The logs show 'getInstance timeout' - what should I check?"
+      - "How can I view logs from a TV without WebSocket access?"
+
+    error_codes:
+      -95: "Operation not supported (Samsung firmware block)"
+      -4: "DRM protected content (Netflix, Widevine, HDCP)"
+      -99: "Not initialized or internal error"
+      0: "Success"
+      4: "Success (alternate code)"
+
+    debugging_workflow: >
+      1. Start HyperTizen on TV
+      2. Open logs.html in browser and connect to TV IP:45678
+      3. Watch logs for initialization messages
+      4. If using diagnostic mode, wait for 10-minute countdown
+      5. Check for error codes and match against known issues
+      6. Use TV notifications for status updates
+      7. If needed, SSH to TV for deeper inspection
+
+    context: >
+      HyperTizen uses a WebSocket log server (port 45678) for real-time
+      debugging. The logs.html viewer provides color-coded, auto-scrolling
+      logs with reconnection logic. Diagnostic mode (HyperionClient.cs)
+      pauses the app for 10 minutes after initialization to allow testing.
+      Common failure points: library loading, capture method testing,
+      and DRM content detection.
+
+  - name: native-interop-expert
+    description: >
+      Expert in C# to native library interop using P/Invoke, DllImport,
+      marshaling, and dynamic library loading. Specialized in ARM calling
+      conventions, struct layouts, and dlopen/dlsym symbol probing.
+
+    expertise:
+      - P/Invoke and DllImport declarations for Tizen libraries
+      - Struct layout and memory marshaling (StructLayout, FieldOffset)
+      - Function pointer delegates and UnmanagedFunctionPointer
+      - dlopen/dlsym dynamic symbol loading
+      - ARM calling conventions (Cdecl, StdCall)
+      - Pointer arithmetic and unsafe code blocks
+      - String marshaling (ANSI, Unicode, UTF-8)
+      - Error handling for native calls (dlerror)
+      - Library dependency resolution
+      - Symbol name mangling (C++ name decoration)
+
+    key_files:
+      - /home/user/HyperTizen/HyperTizen/Capture/T8SdkCaptureMethod.cs
+      - /home/user/HyperTizen/HyperTizen/Capture/T7SdkCaptureMethod.cs
+      - /home/user/HyperTizen/HyperTizen/Capture/PixelSamplingCaptureMethod.cs
+      - /home/user/HyperTizen/HyperTizen/SDK/SystemInfo.cs
+
+    common_tasks:
+      - Writing DllImport declarations for native functions
+      - Creating struct layouts that match native memory layout
+      - Using dlopen/dlsym to probe libraries safely
+      - Debugging marshaling errors and memory corruption
+      - Creating function pointer delegates
+      - Handling native library dependencies
+      - Demangling C++ symbol names
+      - Converting between managed and unmanaged memory
+
+    example_prompts:
+      - "Write a DllImport for secvideo_api_capture_screen_video_only"
+      - "How do I marshal a struct with embedded pointers?"
+      - "What calling convention should I use for ARM Tizen libraries?"
+      - "How can I safely probe a library for symbols without crashing?"
+      - "The struct layout is wrong - how do I debug the memory alignment?"
+      - "How do I call a C++ method from a vtable in C#?"
+      - "What's the correct way to handle IntPtr in P/Invoke?"
+
+    calling_conventions:
+      default: "CallingConvention.Cdecl (ARM Tizen standard)"
+      windows: "CallingConvention.StdCall (not used on Tizen)"
+      note: "Always use Cdecl for ARM-based Tizen libraries"
+
+    struct_guidelines:
+      - Use StructLayout(LayoutKind.Sequential) for C struct compatibility
+      - Use StructLayout(LayoutKind.Explicit) with FieldOffset for unions
+      - Match native alignment (pack/padding)
+      - Use IntPtr for pointers, not direct references
+      - Test with sizeof() to verify struct size matches native
+      - Use unsafe/fixed for array access
+
+    symbol_probing:
+      - Use dlopen(path, RTLD_LAZY) to load without immediate resolution
+      - Use dlsym(handle, symbol) to find function addresses
+      - Call dlerror() after failures for diagnostics
+      - Use RTLD_NOLOAD to check if already loaded
+      - Always dlclose() when done
+      - Wrap in try-catch for native exceptions
+
+    context: >
+      HyperTizen uses extensive P/Invoke to interact with Tizen native
+      libraries. All libraries use ARM Cdecl calling convention. Key structs:
+      Info_t (56 bytes), InputParams, OutputParams (80 bytes), Color (12 bytes).
+      Always test struct sizes against known values from decompiled code.
+
+  - name: documentation-writer
+    description: >
+      Specialized in maintaining technical documentation for HyperTizen. Keeps
+      .md files in sync with code changes, documents new discoveries, and
+      maintains handoff documents for continuity between development sessions.
+
+    expertise:
+      - Technical writing for developer audience
+      - Markdown formatting and structure
+      - Documenting API discoveries and limitations
+      - Writing clear troubleshooting guides
+      - Documenting error codes and workarounds
+      - Creating architecture diagrams (ASCII/Mermaid)
+      - Code commenting best practices
+      - Changelog maintenance
+      - README.md structure for GitHub
+
+    key_files:
+      - /home/user/HyperTizen/README.md
+      - /home/user/HyperTizen/docs/README.md
+
+    common_tasks:
+      - Documenting new capture methods in technical detail
+      - Writing troubleshooting sections for common issues
+      - Maintaining error code reference tables
+      - Documenting struct layouts and memory maps
+      - Creating "what works / what doesn't" summaries
+      - Writing example code snippets
+      - Keeping documentation in sync with code changes
+
+    example_prompts:
+      - "Document the VideoEnhance capture method in detail"
+      - "Create a troubleshooting guide for error code -95"
+      - "Update README.md with current project status"
+      - "Document all known error codes and their meanings"
+      - "Add a 'Known Issues' section to the docs"
+
+    writing_guidelines:
+      - Use clear, direct language (developer audience)
+      - Include code examples with comments
+      - Use tables for error codes and reference data
+      - Add ✅/❌/⚠️ emoji for status indicators
+      - Use code blocks with language tags for syntax highlighting
+      - Include file paths as absolute paths
+      - Mark status sections prominently (Executive Summary, Current Status)
+      - Be honest about what works vs what's blocked
+      - Include "Next Steps" or "TODO" sections
+      - Reference specific line numbers when citing code
+
+    context: >
+      HyperTizen has technical documentation maintained in sync with code.
+      All docs target experienced C# developers working on Tizen TV
+      development. Documentation style is direct, technical, and honest
+      about limitations and Samsung firmware restrictions.
+
+# Global project context
+project:
+  name: HyperTizen
+  type: Tizen 8.0+ Screen Capture Fork
+  language: C#
+  platform: .NET on Samsung Tizen TV
+  current_status: >
+    VideoEnhance pixel sampling is the ONLY working capture method on Tizen 8.0+.
+    The T8 vtable API is blocked by Samsung firmware (-95 error). The T7 API
+    doesn't exist on Tizen 8. WebSocket logging and diagnostic mode are working.
+
+# How to use this file
+usage: >
+  Invoke an agent by mentioning its name in your prompt to Claude Code.
+  Example: "Hey @tizen-capture-expert, why does getVideoMainYUV return -95?"
+
+  The agent will provide specialized knowledge based on its expertise area.
+  Agents have context about specific files, error codes, and workflows.
+
+  For complex tasks, you can invoke multiple agents:
+  Example: "I need @tizen-capture-expert to analyze the capture issue, then
+  @native-interop-expert to check the P/Invoke declarations."
+
+# Common workflows
+workflows:
+  new_capture_method:
+    agents: [native-interop-expert, tizen-capture-expert, documentation-writer]
+    steps:
+      - "Use native-interop-expert to write safe P/Invoke declarations"
+      - "Use tizen-capture-expert to implement and test the capture logic"
+      - "Use documentation-writer to document the new method"
+
+  debugging_crash:
+    agents: [debugging-assistant, tizen-capture-expert, native-interop-expert]
+    steps:
+      - "Use debugging-assistant to analyze WebSocket logs"
+      - "Use tizen-capture-expert to interpret error codes"
+      - "Use native-interop-expert to check marshaling and struct layouts"
+
+  end_of_session:
+    agents: [documentation-writer]
+    steps:
+      - "Document any new discoveries in relevant .md files"
+      - "Update README.md with session progress"
+      - "Note any crashes, blocks, or gotchas for next session"
+
+# Key references
+references:
+  decompiled_code: /home/user/HyperTizen/references/GetCaptureFromTZ.c
+  library_exports: /home/user/HyperTizen/references/2.webp
+  websocket_viewer: /home/user/HyperTizen/logs.html
+
+agents:
+  - name: tizen-ui-expert
+    description: >
+      Specialized in building TV-optimized user interfaces for Samsung Tizen TVs.
+      Expert in remote control navigation, D-pad controls, spatial navigation,
+      and creating accessible TV UIs that work well on 10-foot displays.
+
+    expertise:
+      - Tizen TV UI/UX best practices
+      - Remote control navigation (arrow keys, enter, back)
+      - Spatial navigation and focus management
+      - TV-optimized layouts (readable from 10 feet away)
+      - Tizen WebAPI integration (tizen.application, etc.)
+      - CSS animations optimized for TV rendering
+      - Accessible design for TV interfaces
+      - TizenBrew app integration and compatibility
+
+    key_files:
+      - /home/user/HyperTizen/HyperTizenUI/index.html
+      - /home/user/HyperTizen/HyperTizenUI/main.css
+      - /home/user/HyperTizen/HyperTizenUI/js/wsClient.js
+      - /home/user/HyperTizen/HyperTizenUI/config.xml
+      - /home/user/HyperTizen/HyperTizenUI/package.json
+
+    common_tasks:
+      - Building remote-controllable UIs with D-pad navigation
+      - Implementing focus management for TV interfaces
+      - Creating animations that perform well on TV hardware
+      - Designing layouts optimized for TV screens
+      - Integrating with Tizen WebAPIs
+      - Ensuring TizenBrew module compatibility
+
+    design_principles:
+      - Large, readable fonts (minimum 24px for body text, 40px+ for headers)
+      - High contrast colors for visibility
+      - Clear focus indicators (borders, shadows, scaling)
+      - Spacious layouts with padding/margins
+      - Responsive to remote control inputs
+      - Smooth transitions and animations (60fps target)
+      - Logical tab order for navigation
+
+    remote_control_handling: >
+      TV remotes send standard keyboard events (ArrowUp, ArrowDown, ArrowLeft,
+      ArrowRight, Enter). Focus management should cycle through interactive
+      elements. Use :focus CSS for visual feedback. Implement keyboard event
+      listeners to handle navigation and activation.
+
+    context: >
+      HyperTizenUI is installed via TizenBrew as a GitHub module. It must
+      maintain compatibility with the TizenBrew module system (package.json
+      format, appPath, serviceFile). The UI communicates with the HyperTizen
+      service via WebSocket (port 45677 for control, port 45678 for logs).
+      Service control is done through the Tizen application API.
+
+  - name: tizenbrew-expert
+    description: >
+      Expert in TizenBrew app packaging, module system, and integration.
+      Knows how to create apps that can be installed through TizenBrew's
+      GitHub module manager and work within the TizenBrew ecosystem.
+
+    expertise:
+      - TizenBrew package.json format and requirements
+      - GitHub module installation and updates
+      - Tizen application lifecycle and launching
+      - Service file patterns for background services
+      - Module manager compatibility
+      - App permissions and privileges
+
+    key_files:
+      - /home/user/HyperTizen/HyperTizenUI/package.json
+      - /home/user/HyperTizen/HyperTizenUI/config.xml
+      - /home/user/HyperTizen/HyperTizenUI/js/service.js
+
+    package_requirements:
+      - name: Package name (e.g., "@foxreis/hypertizen")
+      - appName: Display name
+      - version: Semantic version
+      - packageType: Must be "app"
+      - appPath: Entry point HTML file
+      - serviceFile: Service launcher script
+      - repository.url: GitHub repository URL
+
+    installation_command: >
+      Users install via TizenBrew module manager by pressing GREEN button
+      on remote and adding: reisxd/HyperTizen/HyperTizenUI
+      (or iceteaSA/HyperTizen/HyperTizenUI for this fork)
+
+    context: >
+      TizenBrew fetches apps from GitHub repositories. The package.json
+      defines the module. The config.xml defines Tizen app permissions.
+      Service files launch background services using tizen.application API.
+
+  - name: websocket-service-expert
+    description: >
+      Expert in WebSocket client-server communication between HyperTizenUI
+      and the HyperTizen C# service. Knows the message protocol, events,
+      and how to extend the API for new features like service control.
+
+    expertise:
+      - WebSocket message protocol design
+      - JSON event-based messaging
+      - Client-server state synchronization
+      - Adding new WebSocket commands
+      - Error handling and reconnection logic
+      - Real-time log streaming
+
+    key_files:
+      - /home/user/HyperTizen/HyperTizenUI/js/wsClient.js
+      - /home/user/HyperTizen/HyperTizen/LogWebSocketServer.cs
+      - /home/user/HyperTizen/logs.html
+
+    current_protocol:
+      events:
+        - SetConfig (0): Set configuration value
+        - ReadConfig (1): Read configuration value
+        - ReadConfigResult (2): Response with config value
+        - ScanSSDP (3): Trigger SSDP scan
+        - SSDPScanResult (4): SSDP devices found
+
+      message_format: '{"event": 0, "key": "string", "value": "string"}'
+
+    extending_protocol:
+      - Add new event IDs for service control (start, stop, restart)
+      - Add log streaming events
+      - Add capture status events (for rainbow border)
+      - Maintain backwards compatibility
+
+    context: >
+      The WebSocket server runs on port 45677 for control messages and
+      port 45678 for log streaming. The UI connects to both to provide
+      full control and monitoring capabilities.
+
+# Quick troubleshooting
+troubleshooting:
+  app_crashes_on_start: "Often due to unsafe dlopen calls or library loading issues. Check logs.html for details."
+  error_minus_95: "Samsung firmware block. API exists but is intentionally disabled. Try alternative methods."
+  error_minus_4: "DRM protected content (Netflix, HDCP). Cannot capture. Try HDMI input or non-DRM content."
+  websocket_not_connecting: "Check TV IP address, ensure ports 45677 and 45678 are accessible, verify app is running."
+  videoenhance_slow: "Expected - pixel sampling is slower than frame capture. Optimize batch sizes and sleep times."

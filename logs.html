@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperTizen Logs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #2d2d30;
+            padding: 12px 20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: normal;
+            color: #cccccc;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .connection-status .indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-status.connected {
+            background: #1a3d1a;
+            color: #4ec94e;
+        }
+
+        .connection-status.connected .indicator {
+            background: #4ec94e;
+        }
+
+        .connection-status.disconnected {
+            background: #3d1a1a;
+            color: #f48771;
+        }
+
+        .connection-status.disconnected .indicator {
+            background: #f48771;
+        }
+
+        .connection-status.connecting {
+            background: #3d3d1a;
+            color: #d7ba7d;
+        }
+
+        .connection-status.connecting .indicator {
+            background: #d7ba7d;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            background: #0e639c;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1177bb;
+        }
+
+        button:active {
+            background: #0d5185;
+        }
+
+        button.clear {
+            background: #5a5a5a;
+        }
+
+        button.clear:hover {
+            background: #6a6a6a;
+        }
+
+        .config-panel {
+            background: #252526;
+            padding: 12px 20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-shrink: 0;
+        }
+
+        .config-panel label {
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .config-panel input {
+            background: #3c3c3c;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            width: 150px;
+        }
+
+        .logs-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 20px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .log-entry .timestamp {
+            color: #858585;
+        }
+
+        .log-entry .type {
+            font-weight: bold;
+            margin: 0 4px;
+        }
+
+        .log-entry.Debug .type {
+            color: #608b4e;
+        }
+
+        .log-entry.Info .type {
+            color: #4ec9b0;
+        }
+
+        .log-entry.Warning .type {
+            color: #dcdcaa;
+        }
+
+        .log-entry.Error .type {
+            color: #f48771;
+        }
+
+        .log-entry.Performance .type {
+            color: #c586c0;
+        }
+
+        .stats {
+            font-size: 11px;
+            color: #858585;
+        }
+
+        .footer {
+            background: #252526;
+            padding: 8px 20px;
+            border-top: 1px solid #3e3e42;
+            font-size: 11px;
+            color: #858585;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .auto-scroll {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .auto-scroll input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        /* Custom scrollbar */
+        .logs-container::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .logs-container::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 5px;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb:hover {
+            background: #4e4e4e;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 HyperTizen Logs</h1>
+        <div class="status">
+            <div class="stats">
+                <span id="logCount">0</span> logs
+            </div>
+            <div class="connection-status disconnected" id="connectionStatus">
+                <div class="indicator"></div>
+                <span id="statusText">Disconnected</span>
+            </div>
+            <div class="controls">
+                <button onclick="clearLogs()" class="clear">Clear</button>
+                <button onclick="reconnect()">Reconnect</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="config-panel">
+        <label>
+            TV IP:
+            <input type="text" id="tvIp" placeholder="192.168.1.100" value="">
+        </label>
+        <label>
+            Port:
+            <input type="number" id="port" value="45678" style="width: 80px;">
+        </label>
+        <button onclick="connect()">Connect</button>
+        <button onclick="stopReconnect()" class="clear">Stop Auto-Reconnect</button>
+        <label style="margin-left: 20px;">
+            Log Level:
+            <select id="logLevelFilter" onchange="filterLogs()" style="background: #3c3c3c; border: 1px solid #3e3e42; color: #cccccc; padding: 4px 8px; border-radius: 3px; font-size: 12px; cursor: pointer;">
+                <option value="All">All</option>
+                <option value="Debug">Debug+</option>
+                <option value="Info">Info+</option>
+                <option value="Warning">Warning+</option>
+                <option value="Error">Error</option>
+                <option value="Performance">Performance</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="logs-container" id="logsContainer"></div>
+
+    <div class="footer">
+        <div class="auto-scroll">
+            <input type="checkbox" id="autoScroll" checked>
+            <label for="autoScroll">Auto-scroll</label>
+        </div>
+        <div>
+            Retry attempts: <span id="retryCount">0</span> |
+            Last connected: <span id="lastConnected">Never</span>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let reconnectTimer = null;
+        let reconnectAttempts = 0;
+        let maxReconnectDelay = 30000; // 30 seconds max
+        let baseReconnectDelay = 1000; // Start with 1 second
+        let logCount = 0;
+        let lastConnectedTime = null;
+
+        // Load saved settings
+        const savedIp = localStorage.getItem('tvIp');
+        const savedPort = localStorage.getItem('port') || '45678';
+        let autoReconnectEnabled = true;
+
+        if (savedIp) {
+            document.getElementById('tvIp').value = savedIp;
+        }
+        document.getElementById('port').value = savedPort;
+
+        // Auto-connect if we have saved settings
+        if (savedIp) {
+            setTimeout(() => connect(), 500);
+        }
+
+        function getWebSocketUrl() {
+            const ip = document.getElementById('tvIp').value.trim();
+            const port = document.getElementById('port').value.trim();
+
+            if (!ip) {
+                alert('Please enter TV IP address');
+                return null;
+            }
+
+            // Save settings
+            localStorage.setItem('tvIp', ip);
+            localStorage.setItem('port', port);
+
+            return `ws://${ip}:${port}`;
+        }
+
+        function connect() {
+            const url = getWebSocketUrl();
+            if (!url) return;
+
+            // Close existing connection
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+
+            // Clear any pending reconnect
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+
+            // Re-enable auto-reconnect when manually connecting
+            autoReconnectEnabled = true;
+
+            updateStatus('connecting', 'Connecting...');
+            addLog('[System]', 'Info', `Connecting to ${url}...`);
+
+            try {
+                ws = new WebSocket(url);
+
+                ws.onopen = function() {
+                    reconnectAttempts = 0;
+                    lastConnectedTime = new Date();
+                    updateStatus('connected', 'Connected');
+                    updateRetryCount();
+                    updateLastConnected();
+                    addLog('[System]', 'Info', 'WebSocket connected successfully');
+                };
+
+                ws.onmessage = function(event) {
+                    const message = event.data;
+                    parseAndAddLog(message);
+                };
+
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    addLog('[System]', 'Error', 'WebSocket error occurred');
+                };
+
+                ws.onclose = function(event) {
+                    updateStatus('disconnected', 'Disconnected');
+                    addLog('[System]', 'Warning', `Connection closed (code: ${event.code})`);
+
+                    // Attempt to reconnect with exponential backoff
+                    scheduleReconnect();
+                };
+            } catch (error) {
+                updateStatus('disconnected', 'Connection failed');
+                addLog('[System]', 'Error', `Failed to connect: ${error.message}`);
+                scheduleReconnect();
+            }
+        }
+
+        function scheduleReconnect() {
+            if (reconnectTimer) return; // Already scheduled
+            if (!autoReconnectEnabled) {
+                addLog('[System]', 'Info', 'Auto-reconnect disabled. Click "Connect" to reconnect manually.');
+                return;
+            }
+
+            reconnectAttempts++;
+            updateRetryCount();
+
+            // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s (max)
+            const delay = Math.min(
+                baseReconnectDelay * Math.pow(2, reconnectAttempts - 1),
+                maxReconnectDelay
+            );
+
+            addLog('[System]', 'Info', `Reconnecting in ${(delay / 1000).toFixed(1)}s... (attempt ${reconnectAttempts})`);
+
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                connect();
+            }, delay);
+        }
+
+        function reconnect() {
+            reconnectAttempts = 0;
+            autoReconnectEnabled = true;
+            connect();
+        }
+
+        function stopReconnect() {
+            autoReconnectEnabled = false;
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            reconnectAttempts = 0;
+            updateRetryCount();
+            updateStatus('disconnected', 'Disconnected (manual)');
+            addLog('[System]', 'Info', 'Auto-reconnect stopped. Connection closed.');
+        }
+
+        function parseAndAddLog(message) {
+            // Parse format: [HH:mm:ss] [Type] Message
+            const match = message.match(/\[(\d{2}:\d{2}:\d{2})\]\s*\[(\w+)\]\s*(.*)/);
+
+            if (match) {
+                const [, timestamp, type, text] = match;
+                addLog(timestamp, type, text);
+            } else {
+                // Fallback for unparsed messages
+                addLog(new Date().toLocaleTimeString(), 'Info', message);
+            }
+        }
+
+        function addLog(timestamp, type, message) {
+            const container = document.getElementById('logsContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.setAttribute('data-log-type', type);
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'timestamp';
+            timestampSpan.textContent = timestamp;
+
+            const typeSpan = document.createElement('span');
+            typeSpan.className = 'type';
+            typeSpan.textContent = `[${type}]`;
+
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+
+            entry.appendChild(timestampSpan);
+            entry.appendChild(typeSpan);
+            entry.appendChild(messageSpan);
+
+            container.appendChild(entry);
+
+            logCount++;
+            document.getElementById('logCount').textContent = logCount;
+
+            // Apply current filter
+            applyFilterToEntry(entry);
+
+            // Auto-scroll if enabled
+            if (document.getElementById('autoScroll').checked) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logsContainer').innerHTML = '';
+            logCount = 0;
+            document.getElementById('logCount').textContent = logCount;
+        }
+
+        function updateStatus(status, text) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = `connection-status ${status}`;
+            document.getElementById('statusText').textContent = text;
+        }
+
+        function updateRetryCount() {
+            document.getElementById('retryCount').textContent = reconnectAttempts;
+        }
+
+        function updateLastConnected() {
+            if (lastConnectedTime) {
+                document.getElementById('lastConnected').textContent =
+                    lastConnectedTime.toLocaleTimeString();
+            }
+        }
+
+        // Handle page visibility to pause/resume reconnection
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // Page hidden - clear reconnect timer
+                if (reconnectTimer) {
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = null;
+                }
+            } else {
+                // Page visible again - reconnect if disconnected and auto-reconnect enabled
+                if (autoReconnectEnabled && (!ws || ws.readyState !== WebSocket.OPEN)) {
+                    connect();
+                }
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (ws) {
+                ws.close();
+            }
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+            }
+        });
+
+        // Log level filtering
+        const logLevelHierarchy = {
+            'Debug': 0,
+            'Info': 1,
+            'Warning': 2,
+            'Error': 3,
+            'Performance': 4
+        };
+
+        function filterLogs() {
+            const container = document.getElementById('logsContainer');
+            const entries = container.querySelectorAll('.log-entry');
+            entries.forEach(entry => applyFilterToEntry(entry));
+        }
+
+        function applyFilterToEntry(entry) {
+            const selectedLevel = document.getElementById('logLevelFilter').value;
+            const entryType = entry.getAttribute('data-log-type');
+
+            if (selectedLevel === 'All') {
+                entry.style.display = '';
+                return;
+            }
+
+            // Special case for Performance - only show Performance logs
+            if (selectedLevel === 'Performance') {
+                entry.style.display = entryType === 'Performance' ? '' : 'none';
+                return;
+            }
+
+            // For other levels, show that level and higher priority levels
+            const selectedPriority = logLevelHierarchy[selectedLevel];
+            const entryPriority = logLevelHierarchy[entryType];
+
+            if (entryPriority !== undefined && entryPriority >= selectedPriority) {
+                entry.style.display = '';
+            } else {
+                entry.style.display = 'none';
+            }
+        }
+
+        // Load saved log level filter
+        const savedLogLevel = localStorage.getItem('logLevelFilter') || 'All';
+        document.getElementById('logLevelFilter').value = savedLogLevel;
+
+        // Save log level filter on change
+        document.getElementById('logLevelFilter').addEventListener('change', function() {
+            localStorage.setItem('logLevelFilter', this.value);
+        });
+    </script>
+</body>
+</html>
