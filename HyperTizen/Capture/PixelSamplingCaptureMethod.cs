@@ -14,6 +14,7 @@ namespace HyperTizen.Capture
     {
         private bool _isInitialized = false;
         private Condition _condition;
+        private bool _usingTizen7Api = false; // Track which API variant works
 
         // Default 16-point sampling grid (normalized coordinates 0.0-1.0)
         // Maps to screen edges for ambient lighting effect
@@ -45,25 +46,6 @@ namespace HyperTizen.Capture
         public CaptureMethodType Type => CaptureMethodType.PixelSampling;
 
         #region P/Invoke Declarations
-
-        // Tizen version detection
-        private static bool IsTizen7OrHigher
-        {
-            get
-            {
-                string version;
-                Information.TryGetValue("http://tizen.org/feature/platform.version", out version);
-                if (!string.IsNullOrEmpty(version))
-                {
-                    string majorVersion = version.Split('.')[0];
-                    if (int.TryParse(majorVersion, out int major))
-                    {
-                        return major >= 7;
-                    }
-                }
-                return false;
-            }
-        }
 
         // Tizen 6 API (cs_ve_* prefix)
         [DllImport("/usr/lib/libvideoenhance.so", CallingConvention = CallingConvention.Cdecl,
@@ -192,45 +174,48 @@ namespace HyperTizen.Capture
 
         /// <summary>
         /// Get screen condition parameters from VideoEnhance library
+        /// Uses API fallback: Try Tizen 6 (cs_ve_*) first, then Tizen 7+ (ve_*)
         /// </summary>
         private bool GetCondition()
         {
             int res = -1;
+
+            // TODO: DIAGNOSTIC - Remove struct size logging after verification
+            Helper.Log.Write(Helper.eLogType.Debug,
+                $"PixelSampling: Condition struct size: {Marshal.SizeOf<Condition>()} bytes");
+            Helper.Log.Write(Helper.eLogType.Debug,
+                $"PixelSampling: Color struct size: {Marshal.SizeOf<Color>()} bytes");
+
+            // Try Tizen 6 API first (cs_ve_get_rgb_measure_condition)
             try
             {
-                // TODO: DIAGNOSTIC - Remove struct size logging after verification
-                Helper.Log.Write(Helper.eLogType.Debug,
-                    $"PixelSampling: Condition struct size: {Marshal.SizeOf<Condition>()} bytes");
-                Helper.Log.Write(Helper.eLogType.Debug,
-                    $"PixelSampling: Color struct size: {Marshal.SizeOf<Color>()} bytes");
+                Helper.Log.Write(Helper.eLogType.Debug, "PixelSampling: Trying Tizen 6 API (cs_ve_*)");
+                res = MeasureCondition(out _condition);
 
-                if (!IsTizen7OrHigher)
+                if (res >= 0)
                 {
-                    Helper.Log.Write(Helper.eLogType.Debug, "PixelSampling: Calling MeasureCondition (Tizen 6 API)");
-                    res = MeasureCondition(out _condition);
+                    _usingTizen7Api = false;
+                    Helper.Log.Write(Helper.eLogType.Info, "PixelSampling: Using Tizen 6 API (cs_ve_*)");
+                    Helper.Log.Write(Helper.eLogType.Debug, $"PixelSampling: MeasureCondition result: {res}");
+
+                    // Log the condition details
+                    Helper.Log.Write(Helper.eLogType.Info,
+                        $"PixelSampling: Condition - Width: {_condition.Width}, Height: {_condition.Height}, " +
+                        $"Points: {_condition.ScreenCapturePoints}, PixelDensity: {_condition.PixelDensityX}x{_condition.PixelDensityY}, " +
+                        $"Sleep: {_condition.SleepMS}ms");
+
+                    return true;
                 }
                 else
                 {
-                    Helper.Log.Write(Helper.eLogType.Debug, "PixelSampling: Calling MeasureCondition7 (Tizen 7+ API)");
-                    res = MeasureCondition7(out _condition);
+                    Helper.Log.Write(Helper.eLogType.Warning,
+                        $"PixelSampling: Tizen 6 API failed with error code {res}, trying Tizen 7+ API");
                 }
-
-                Helper.Log.Write(Helper.eLogType.Debug, $"PixelSampling: MeasureCondition result: {res}");
-
-                if (res < 0)
-                {
-                    Helper.Log.Write(Helper.eLogType.Error,
-                        $"PixelSampling: GetCondition failed with error code {res}");
-                    return false;
-                }
-
-                // Log the condition details
-                Helper.Log.Write(Helper.eLogType.Info,
-                    $"PixelSampling: Condition - Width: {_condition.Width}, Height: {_condition.Height}, " +
-                    $"Points: {_condition.ScreenCapturePoints}, PixelDensity: {_condition.PixelDensityX}x{_condition.PixelDensityY}, " +
-                    $"Sleep: {_condition.SleepMS}ms");
-
-                return true;
+            }
+            catch (EntryPointNotFoundException)
+            {
+                Helper.Log.Write(Helper.eLogType.Debug,
+                    "PixelSampling: Tizen 6 API entry point not found, trying Tizen 7+ API");
             }
             catch (DllNotFoundException ex)
             {
@@ -240,8 +225,49 @@ namespace HyperTizen.Capture
             }
             catch (Exception ex)
             {
+                Helper.Log.Write(Helper.eLogType.Warning,
+                    $"PixelSampling: Tizen 6 API exception: {ex.GetType().Name}: {ex.Message}, trying Tizen 7+ API");
+            }
+
+            // Try Tizen 7+ API (ve_get_rgb_measure_condition)
+            try
+            {
+                Helper.Log.Write(Helper.eLogType.Debug, "PixelSampling: Trying Tizen 7+ API (ve_*)");
+                res = MeasureCondition7(out _condition);
+
+                if (res >= 0)
+                {
+                    _usingTizen7Api = true;
+                    Helper.Log.Write(Helper.eLogType.Info, "PixelSampling: Using Tizen 7+ API (ve_*)");
+                    Helper.Log.Write(Helper.eLogType.Debug, $"PixelSampling: MeasureCondition7 result: {res}");
+
+                    // Log the condition details
+                    Helper.Log.Write(Helper.eLogType.Info,
+                        $"PixelSampling: Condition - Width: {_condition.Width}, Height: {_condition.Height}, " +
+                        $"Points: {_condition.ScreenCapturePoints}, PixelDensity: {_condition.PixelDensityX}x{_condition.PixelDensityY}, " +
+                        $"Sleep: {_condition.SleepMS}ms");
+
+                    return true;
+                }
+                else
+                {
+                    Helper.Log.Write(Helper.eLogType.Error,
+                        $"PixelSampling: Tizen 7+ API failed with error code {res}");
+                    return false;
+                }
+            }
+            catch (EntryPointNotFoundException ex)
+            {
                 Helper.Log.Write(Helper.eLogType.Error,
-                    $"PixelSampling: GetCondition exception: {ex.GetType().Name}: {ex.Message}");
+                    $"PixelSampling: Tizen 7+ API entry point not found: {ex.Message}");
+                Helper.Log.Write(Helper.eLogType.Error,
+                    "PixelSampling: BOTH API variants failed - library incompatible with this Tizen version");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Helper.Log.Write(Helper.eLogType.Error,
+                    $"PixelSampling: Tizen 7+ API exception: {ex.GetType().Name}: {ex.Message}");
                 return false;
             }
         }
@@ -288,13 +314,13 @@ namespace HyperTizen.Capture
 
                     // Set the measurement position
                     int res;
-                    if (!IsTizen7OrHigher)
+                    if (_usingTizen7Api)
                     {
-                        res = MeasurePosition(j, x, y);
+                        res = MeasurePosition7(j, x, y);
                     }
                     else
                     {
-                        res = MeasurePosition7(j, x, y);
+                        res = MeasurePosition(j, x, y);
                     }
 
                     if (res < 0)
@@ -319,13 +345,13 @@ namespace HyperTizen.Capture
                     Color color;
                     int res;
 
-                    if (!IsTizen7OrHigher)
+                    if (_usingTizen7Api)
                     {
-                        res = MeasurePixel(k, out color);
+                        res = MeasurePixel7(k, out color);
                     }
                     else
                     {
-                        res = MeasurePixel7(k, out color);
+                        res = MeasurePixel(k, out color);
                     }
 
                     if (res < 0)
