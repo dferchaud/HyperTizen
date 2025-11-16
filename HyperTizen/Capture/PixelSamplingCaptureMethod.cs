@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Tizen.System;
@@ -262,6 +264,10 @@ namespace HyperTizen.Capture
                     $"PixelSampling: Tizen 7+ API entry point not found: {ex.Message}");
                 Helper.Log.Write(Helper.eLogType.Error,
                     "PixelSampling: BOTH API variants failed - library incompatible with this Tizen version");
+
+                // List available entry points for diagnostics
+                LogAvailableEntryPoints();
+
                 return false;
             }
             catch (Exception ex)
@@ -269,6 +275,116 @@ namespace HyperTizen.Capture
                 Helper.Log.Write(Helper.eLogType.Error,
                     $"PixelSampling: Tizen 7+ API exception: {ex.GetType().Name}: {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Log available entry points in libvideoenhance.so for diagnostics
+        /// Helps identify what functions are actually available when expected ones are missing
+        /// </summary>
+        private void LogAvailableEntryPoints()
+        {
+            try
+            {
+                Helper.Log.Write(Helper.eLogType.Info,
+                    "PixelSampling: Attempting to list available entry points in libvideoenhance.so");
+
+                var process = new Process();
+                process.StartInfo.FileName = "/usr/bin/nm";
+                process.StartInfo.Arguments = "-D /usr/lib/libvideoenhance.so";
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = true;
+
+                process.Start();
+
+                string output = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode != 0)
+                {
+                    // Try fallback with readelf
+                    Helper.Log.Write(Helper.eLogType.Debug,
+                        $"PixelSampling: nm failed (code {process.ExitCode}), trying readelf");
+
+                    process = new Process();
+                    process.StartInfo.FileName = "/usr/bin/readelf";
+                    process.StartInfo.Arguments = "-s /usr/lib/libvideoenhance.so";
+                    process.StartInfo.RedirectStandardOutput = true;
+                    process.StartInfo.RedirectStandardError = true;
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.CreateNoWindow = true;
+
+                    process.Start();
+                    output = process.StandardOutput.ReadToEnd();
+                    error = process.StandardError.ReadToEnd();
+                    process.WaitForExit();
+
+                    if (process.ExitCode != 0)
+                    {
+                        Helper.Log.Write(Helper.eLogType.Warning,
+                            "PixelSampling: Could not enumerate library symbols (nm and readelf failed)");
+                        return;
+                    }
+                }
+
+                // Parse and log relevant entry points (those containing "ve_" or "rgb")
+                var lines = output.Split('\n');
+                var relevantSymbols = new List<string>();
+
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    // Look for function symbols containing "ve" or "rgb" (case insensitive)
+                    if (line.ToLower().Contains("ve") || line.ToLower().Contains("rgb"))
+                    {
+                        // Extract just the symbol name (nm format: address type name)
+                        var parts = line.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length >= 3)
+                        {
+                            string symbolName = parts[parts.Length - 1];
+                            if (!string.IsNullOrWhiteSpace(symbolName))
+                            {
+                                relevantSymbols.Add(symbolName);
+                            }
+                        }
+                    }
+                }
+
+                if (relevantSymbols.Count > 0)
+                {
+                    Helper.Log.Write(Helper.eLogType.Info,
+                        $"PixelSampling: Found {relevantSymbols.Count} potentially relevant entry points:");
+
+                    int logged = 0;
+                    foreach (var symbol in relevantSymbols)
+                    {
+                        Helper.Log.Write(Helper.eLogType.Info, $"  - {symbol}");
+                        logged++;
+
+                        // Limit logging to prevent spam
+                        if (logged >= 50)
+                        {
+                            Helper.Log.Write(Helper.eLogType.Info,
+                                $"  ... and {relevantSymbols.Count - logged} more (truncated)");
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    Helper.Log.Write(Helper.eLogType.Warning,
+                        "PixelSampling: No relevant entry points found containing 've' or 'rgb'");
+                }
+            }
+            catch (Exception ex)
+            {
+                Helper.Log.Write(Helper.eLogType.Warning,
+                    $"PixelSampling: Could not enumerate library symbols: {ex.Message}");
             }
         }
 
