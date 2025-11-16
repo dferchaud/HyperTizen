@@ -50,19 +50,21 @@ namespace HyperTizen.Capture
         #region P/Invoke Declarations
 
         // dlopen/dlsym for dynamic symbol enumeration
+        // Using "libdl.so.2" which is standard on Linux systems
+        // Falls back to trying libdl.so.2 or libc if not found
         private const int RTLD_NOW = 2;
         private const int RTLD_LAZY = 1;
 
-        [DllImport("libdl.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr dlopen(string filename, int flags);
 
-        [DllImport("libdl.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr dlsym(IntPtr handle, string symbol);
 
-        [DllImport("libdl.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
         private static extern int dlclose(IntPtr handle);
 
-        [DllImport("libdl.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr dlerror();
 
         // Tizen 6 API (cs_ve_* prefix)
@@ -423,28 +425,15 @@ namespace HyperTizen.Capture
 
         /// <summary>
         /// Log available entry points in libvideoenhance.so for diagnostics
-        /// Uses dlopen/dlsym for programmatic symbol testing (more reliable than nm/readelf on embedded systems)
-        /// Falls back to strings command if dlsym testing fails
+        /// Uses dlopen/dlsym for programmatic symbol testing
         /// </summary>
         private void LogAvailableEntryPoints()
         {
             Helper.Log.Write(Helper.eLogType.Info,
                 "PixelSampling: ===== LIBRARY SYMBOL ENUMERATION DIAGNOSTICS =====");
 
-            // First, verify which tools are available on the system
-            LogAvailableTools();
-
-            // Primary method: Use dlopen/dlsym to test specific entry points
-            bool dlopenSuccess = TryDlopenSymbolTest();
-
-            // Fallback method 1: Use strings command (most likely to exist)
-            if (!dlopenSuccess)
-            {
-                TryStringsCommand();
-            }
-
-            // Fallback method 2: Try nm if available
-            TryNmCommand();
+            // Use dlopen/dlsym to test specific entry points
+            TryDlopenSymbolTest();
 
             Helper.Log.Write(Helper.eLogType.Info,
                 "PixelSampling: ===== END DIAGNOSTICS =====");
@@ -456,29 +445,14 @@ namespace HyperTizen.Capture
             Helper.Log.Write(Helper.eLogType.Info,
                 "  2. If symbols found, add P/Invoke declarations with correct entry point names");
             Helper.Log.Write(Helper.eLogType.Info,
-                "  3. If no symbols found, libvideoenhance.so may not support RGB pixel sampling on Tizen 9");
+                "  3. If no symbols found, libvideoenhance.so may not support RGB pixel sampling on this Tizen version");
             Helper.Log.Write(Helper.eLogType.Info,
                 "  4. Consider alternative capture methods (TBM/DRM capture for Tizen 8+)");
         }
 
         /// <summary>
-        /// Check which diagnostic tools are available on the system
-        /// </summary>
-        private void LogAvailableTools()
-        {
-            Helper.Log.Write(Helper.eLogType.Info, "PixelSampling: Checking available diagnostic tools:");
-
-            string[] tools = { "/usr/bin/nm", "/usr/bin/readelf", "/usr/bin/strings", "/usr/bin/objdump" };
-            foreach (var tool in tools)
-            {
-                bool exists = System.IO.File.Exists(tool);
-                Helper.Log.Write(Helper.eLogType.Info,
-                    $"  {(exists ? "✓" : "✗")} {tool} {(exists ? "available" : "not found")}");
-            }
-        }
-
-        /// <summary>
-        /// Try to test specific entry points using dlopen/dlsym (most reliable method)
+        /// Try to test specific entry points using dlopen/dlsym
+        /// Tests multiple library paths including Tizen 8+ .so.0.1.0 variants
         /// </summary>
         private bool TryDlopenSymbolTest()
         {
@@ -487,14 +461,39 @@ namespace HyperTizen.Capture
                 Helper.Log.Write(Helper.eLogType.Info,
                     "PixelSampling: Testing entry points with dlopen/dlsym...");
 
-                // Open the library
-                IntPtr handle = dlopen("/usr/lib/libvideoenhance.so", RTLD_NOW);
+                // Test multiple library paths (Tizen 8+ may use versioned .so.0.1.0)
+                string[] libraryPaths = new string[]
+                {
+                    "/usr/lib/libvideoenhance.so",
+                    "/usr/lib/libvideoenhance.so.0.1.0",
+                    "/usr/lib/libvideoenhance.so.0",
+                    "/lib/libvideoenhance.so",
+                    "/lib/libvideoenhance.so.0.1.0",
+                    "/lib/libvideoenhance.so.0"
+                };
+
+                IntPtr handle = IntPtr.Zero;
+                string successPath = null;
+
+                // Try to open library with different paths
+                foreach (var libPath in libraryPaths)
+                {
+                    handle = dlopen(libPath, RTLD_NOW);
+                    if (handle != IntPtr.Zero)
+                    {
+                        successPath = libPath;
+                        Helper.Log.Write(Helper.eLogType.Info,
+                            $"PixelSampling: ✓ Opened library: {libPath}");
+                        break;
+                    }
+                }
+
                 if (handle == IntPtr.Zero)
                 {
                     IntPtr errorPtr = dlerror();
                     string error = errorPtr != IntPtr.Zero ? Marshal.PtrToStringAnsi(errorPtr) : "Unknown error";
                     Helper.Log.Write(Helper.eLogType.Error,
-                        $"PixelSampling: dlopen failed: {error}");
+                        $"PixelSampling: dlopen failed for all paths: {error}");
                     return false;
                 }
 
@@ -534,11 +533,16 @@ namespace HyperTizen.Capture
                     "rgb_measure_pixel",
                     "get_condition",
                     "set_position",
-                    "get_pixel"
+                    "get_pixel",
+
+                    // Mangled/decorated variants
+                    "_cs_ve_get_rgb_measure_condition",
+                    "_ve_get_rgb_measure_condition",
+                    "RGB_measure_condition",
+                    "RGBMeasureCondition"
                 };
 
                 var foundSymbols = new List<string>();
-                var notFoundSymbols = new List<string>();
 
                 foreach (var symbol in knownSymbols)
                 {
@@ -546,10 +550,6 @@ namespace HyperTizen.Capture
                     if (sym != IntPtr.Zero)
                     {
                         foundSymbols.Add(symbol);
-                    }
-                    else
-                    {
-                        notFoundSymbols.Add(symbol);
                     }
                 }
 
@@ -559,7 +559,7 @@ namespace HyperTizen.Capture
                 if (foundSymbols.Count > 0)
                 {
                     Helper.Log.Write(Helper.eLogType.Info,
-                        $"PixelSampling: ✓ Found {foundSymbols.Count} entry points:");
+                        $"PixelSampling: ✓ Found {foundSymbols.Count} entry point(s) in {successPath}:");
                     foreach (var symbol in foundSymbols)
                     {
                         Helper.Log.Write(Helper.eLogType.Info, $"    ✓ {symbol}");
@@ -568,11 +568,10 @@ namespace HyperTizen.Capture
                 else
                 {
                     Helper.Log.Write(Helper.eLogType.Warning,
-                        "PixelSampling: ✗ NO matching entry points found in test list");
+                        $"PixelSampling: ✗ NO matching entry points found in {successPath}");
+                    Helper.Log.Write(Helper.eLogType.Info,
+                        $"PixelSampling: Tested {knownSymbols.Length} symbol patterns but none matched");
                 }
-
-                Helper.Log.Write(Helper.eLogType.Debug,
-                    $"PixelSampling: {notFoundSymbols.Count} tested symbols not found");
 
                 return foundSymbols.Count > 0;
             }
@@ -581,187 +580,6 @@ namespace HyperTizen.Capture
                 Helper.Log.Write(Helper.eLogType.Warning,
                     $"PixelSampling: dlopen/dlsym test failed: {ex.Message}");
                 return false;
-            }
-        }
-
-        /// <summary>
-        /// Try to enumerate symbols using strings command (fallback method)
-        /// </summary>
-        private void TryStringsCommand()
-        {
-            try
-            {
-                if (!System.IO.File.Exists("/usr/bin/strings"))
-                {
-                    Helper.Log.Write(Helper.eLogType.Debug,
-                        "PixelSampling: /usr/bin/strings not available, skipping");
-                    return;
-                }
-
-                Helper.Log.Write(Helper.eLogType.Info,
-                    "PixelSampling: Trying strings command for symbol enumeration...");
-
-                var process = new Process();
-                process.StartInfo.FileName = "/usr/bin/strings";
-                process.StartInfo.Arguments = "/usr/lib/libvideoenhance.so";
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = true;
-
-                process.Start();
-                string output = process.StandardOutput.ReadToEnd();
-                string error = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-
-                if (process.ExitCode != 0)
-                {
-                    Helper.Log.Write(Helper.eLogType.Warning,
-                        $"PixelSampling: strings command failed (exit code {process.ExitCode}): {error}");
-                    return;
-                }
-
-                // Parse output for relevant symbols
-                var lines = output.Split('\n');
-                var relevantSymbols = new List<string>();
-
-                foreach (var line in lines)
-                {
-                    if (string.IsNullOrWhiteSpace(line))
-                        continue;
-
-                    string trimmed = line.Trim();
-
-                    // Look for function-like strings containing relevant keywords
-                    if ((trimmed.Contains("ve") || trimmed.Contains("rgb") || trimmed.Contains("measure") ||
-                         trimmed.Contains("condition") || trimmed.Contains("pixel") || trimmed.Contains("position")) &&
-                        !trimmed.Contains(" ") && trimmed.Length < 100)
-                    {
-                        relevantSymbols.Add(trimmed);
-                    }
-                }
-
-                if (relevantSymbols.Count > 0)
-                {
-                    Helper.Log.Write(Helper.eLogType.Info,
-                        $"PixelSampling: strings found {relevantSymbols.Count} potentially relevant symbols:");
-
-                    int logged = 0;
-                    foreach (var symbol in relevantSymbols)
-                    {
-                        Helper.Log.Write(Helper.eLogType.Info, $"    {symbol}");
-                        logged++;
-
-                        if (logged >= 100)
-                        {
-                            Helper.Log.Write(Helper.eLogType.Info,
-                                $"    ... and {relevantSymbols.Count - logged} more (truncated)");
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    Helper.Log.Write(Helper.eLogType.Warning,
-                        "PixelSampling: strings found no relevant symbols");
-                }
-            }
-            catch (Exception ex)
-            {
-                Helper.Log.Write(Helper.eLogType.Debug,
-                    $"PixelSampling: strings command exception: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Try to enumerate symbols using nm command (fallback method)
-        /// </summary>
-        private void TryNmCommand()
-        {
-            try
-            {
-                if (!System.IO.File.Exists("/usr/bin/nm"))
-                {
-                    Helper.Log.Write(Helper.eLogType.Debug,
-                        "PixelSampling: /usr/bin/nm not available, skipping");
-                    return;
-                }
-
-                Helper.Log.Write(Helper.eLogType.Info,
-                    "PixelSampling: Trying nm command for symbol enumeration...");
-
-                var process = new Process();
-                process.StartInfo.FileName = "/usr/bin/nm";
-                process.StartInfo.Arguments = "-D /usr/lib/libvideoenhance.so";
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.CreateNoWindow = true;
-
-                process.Start();
-                string output = process.StandardOutput.ReadToEnd();
-                string error = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-
-                if (process.ExitCode != 0)
-                {
-                    Helper.Log.Write(Helper.eLogType.Debug,
-                        $"PixelSampling: nm command failed (exit code {process.ExitCode}): {error}");
-                    return;
-                }
-
-                // Parse output for relevant symbols
-                var lines = output.Split('\n');
-                var relevantSymbols = new List<string>();
-
-                foreach (var line in lines)
-                {
-                    if (string.IsNullOrWhiteSpace(line))
-                        continue;
-
-                    if (line.ToLower().Contains("ve") || line.ToLower().Contains("rgb"))
-                    {
-                        var parts = line.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length >= 3)
-                        {
-                            string symbolName = parts[parts.Length - 1];
-                            if (!string.IsNullOrWhiteSpace(symbolName))
-                            {
-                                relevantSymbols.Add(symbolName);
-                            }
-                        }
-                    }
-                }
-
-                if (relevantSymbols.Count > 0)
-                {
-                    Helper.Log.Write(Helper.eLogType.Info,
-                        $"PixelSampling: nm found {relevantSymbols.Count} relevant symbols:");
-
-                    int logged = 0;
-                    foreach (var symbol in relevantSymbols)
-                    {
-                        Helper.Log.Write(Helper.eLogType.Info, $"    {symbol}");
-                        logged++;
-
-                        if (logged >= 50)
-                        {
-                            Helper.Log.Write(Helper.eLogType.Info,
-                                $"    ... and {relevantSymbols.Count - logged} more (truncated)");
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    Helper.Log.Write(Helper.eLogType.Debug,
-                        "PixelSampling: nm found no relevant symbols");
-                }
-            }
-            catch (Exception ex)
-            {
-                Helper.Log.Write(Helper.eLogType.Debug,
-                    $"PixelSampling: nm command exception: {ex.Message}");
             }
         }
 
