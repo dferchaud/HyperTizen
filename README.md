@@ -421,53 +421,60 @@ cd HyperTizen
 dotnet restore HyperTizen/HyperTizen.csproj
 ```
 
-### Étape 4 : Compiler le projet
+### Étape 4 : Compiler et publier le projet
 
-#### Option A : Avec Visual Studio
+#### Option A : Avec Visual Studio (recommandé)
 1. Ouvrez `HyperTizen.sln` dans Visual Studio
 2. Sélectionnez **Release** dans la barre d'outils
-3. Cliquez sur **Build** → **Build Solution** (ou `Ctrl+Shift+B`)
-4. Les fichiers compilés seront dans `HyperTizen/bin/Release/tizen90/`
+3. Faites un clic droit sur le projet **HyperTizen** → **Publish**
+4. OU cliquez sur **Build** → **Build Solution** (ou `Ctrl+Shift+B`)
 
 #### Option B : Avec dotnet CLI
 ```bash
-# Compilation en mode Release
-dotnet build HyperTizen/HyperTizen.csproj -c Release
+# Publication en mode Release (recommandé pour créer le TPK)
+dotnet publish HyperTizen/HyperTizen.csproj -c Release -o HyperTizen/bin/Publish
 
-# Ou compilation en mode Debug
-dotnet build HyperTizen/HyperTizen.csproj -c Debug
+# Ou simple compilation pour tester
+dotnet build HyperTizen/HyperTizen.csproj -c Release
 ```
 
-Les fichiers compilés seront dans :
-- Release : `HyperTizen/bin/Release/tizen90/`
-- Debug : `HyperTizen/bin/Debug/tizen90/`
+**Important :** Utilisez `dotnet publish` pour créer un package complet avec tous les fichiers nécessaires (manifest, ressources, etc.).
 
 ### Étape 5 : Créer le package TPK
 
-Une fois le projet compilé, vous devez créer un package TPK :
+#### Méthode 1 : Depuis le dossier publié (RECOMMANDÉ)
 
-```bash
-# Naviguer vers les outils Tizen Studio
-cd C:\tizen-studio\tools\ide\bin  # Windows
-cd ~/tizen-studio/tools/ide/bin   # Linux/Mac
+Une fois le projet publié avec `dotnet publish`, créez le TPK :
 
-# Créer le package TPK (non signé)
-tizen package -t tpk -s VOTRE_PROFIL -- /chemin/vers/HyperTizen/HyperTizen/bin/Release/tizen90
-```
-
-**Exemple complet (Windows) :**
+**Windows :**
 ```bash
 cd C:\tizen-studio\tools\ide\bin
-.\tizen package -t tpk -s HyperTizen -o C:\HyperTizen\build -- C:\HyperTizen\HyperTizen\bin\Release\tizen90
+.\tizen package -t tpk -s HyperTizen -o C:\projects\HyperTizen\build -- C:\projects\HyperTizen\HyperTizen\bin\Publish
 ```
 
-**Exemple complet (Linux/Mac) :**
+**Linux/Mac :**
 ```bash
 cd ~/tizen-studio/tools/ide/bin
-./tizen package -t tpk -s HyperTizen -o ~/HyperTizen/build -- ~/HyperTizen/HyperTizen/bin/Release/tizen90
+./tizen package -t tpk -s HyperTizen -o ~/HyperTizen/build -- ~/HyperTizen/HyperTizen/bin/Publish
 ```
 
-Le fichier TPK signé sera créé dans le dossier de sortie spécifié.
+#### Méthode 2 : Depuis le dossier source (PLUS SIMPLE)
+
+Cette méthode compile automatiquement si nécessaire :
+
+**Windows :**
+```bash
+cd C:\tizen-studio\tools\ide\bin
+.\tizen package -t tpk -s HyperTizen -o C:\projects\HyperTizen\build -- C:\projects\HyperTizen\HyperTizen
+```
+
+**Linux/Mac :**
+```bash
+cd ~/tizen-studio/tools/ide\bin
+./tizen package -t tpk -s HyperTizen -o ~/HyperTizen/build -- ~/HyperTizen/HyperTizen
+```
+
+**Note :** Le package TPK signé sera créé dans le dossier de sortie spécifié (option `-o`).
 
 ### Étape 6 : Installer sur votre TV
 
@@ -483,6 +490,19 @@ tizen install -n /chemin/vers/le/fichier.tpk
 - Cette erreur apparaît si vous essayez `dotnet new --install Tizen.NET.Sdk`
 - **Solution** : Vous n'avez pas besoin de cette commande ! Compilez directement avec `dotnet build`
 - Les templates ne sont nécessaires que pour créer de NOUVEAUX projets, pas pour compiler un projet existant
+
+**Erreur : "Cannot provide a package function to this project"**
+- Cette erreur apparaît si vous essayez de créer le TPK depuis `bin/Release/tizen90/`
+- **Cause** : Le dossier de compilation ne contient pas tous les fichiers nécessaires (manifest, ressources)
+- **Solution 1** : Utilisez `dotnet publish` au lieu de `dotnet build`, puis créez le TPK depuis `bin/Publish/`
+  ```bash
+  dotnet publish HyperTizen/HyperTizen.csproj -c Release -o HyperTizen/bin/Publish
+  tizen package -t tpk -s HyperTizen -o ./build -- ./HyperTizen/bin/Publish
+  ```
+- **Solution 2** : Créez le TPK directement depuis le dossier source (PLUS SIMPLE)
+  ```bash
+  tizen package -t tpk -s HyperTizen -o ./build -- ./HyperTizen
+  ```
 
 **Erreur : "Could not load type 'Tizen.xxx'" ou "Tizen.NET.Sdk not found"**
 - Vérifiez que tous les packages NuGet sont restaurés :
