@@ -353,16 +353,68 @@ Pour vérifier que HyperTizen fonctionne correctement sur votre **QE55Q80A** :
 
 ### Résolution de problèmes
 
+**Erreur : `install failed[118, -4], reason: Operation not allowed`**
+
+Cette erreur indique un problème de permissions. Causes possibles :
+
+1. **TizenBrew n'est pas installé** (CAUSE LA PLUS FRÉQUENTE)
+   - HyperTizen nécessite TizenBrew pour fonctionner
+   - Installez TizenBrew d'abord : https://github.com/reisxd/TizenBrew/blob/main/docs/README.md
+   - Puis réessayez l'installation de HyperTizen
+
+2. **Le certificat ne contient pas le DUID de votre TV**
+
+   Récupérez le DUID de votre TV :
+   ```powershell
+   cd C:\tizen-studio\tools\ide\bin
+   .\sdb connect IP_DE_VOTRE_TV
+   .\tizen duid tv
+   ```
+
+   Ajoutez le DUID au certificat via Tizen Studio :
+   - **Tools** → **Device Manager**
+   - Connectez votre TV
+   - Clic droit → **Permit to install applications**
+
+   Puis re-signez et réinstallez :
+   ```powershell
+   .\tizen package -t tpk -s HyperTizen -o C:\build -- C:\projects\HyperTizen\HyperTizen
+   .\tizen install -n C:\build\io.gh.reisxd.HyperTizen-1.0.0.tpk
+   ```
+
 **Erreur : `install failed[118, -12], reason: Check certificate error`**
 - Vous devez signer le package avec vos certificats (voir Étape 4)
 
+**Erreur : `ERR_CONNECTION_REFUSED` sur port 45678 ou "Control WebSocket error"**
+- Le service HyperTizen n'est pas en cours d'exécution
+- **Causes possibles :**
+  1. L'installation a échoué (vérifiez l'erreur `install failed[118, -4]` ci-dessus)
+  2. Le service n'est pas démarré
+  3. TizenBrew n'est pas installé
+
+**Vérifier l'installation :**
+```powershell
+# Listez les applications installées sur la TV
+cd C:\tizen-studio\tools\ide\bin
+.\sdb connect IP_DE_VOTRE_TV
+.\tizen install --list
+```
+Vous devriez voir `io.gh.reisxd.HyperTizen` dans la liste. Si absent, l'installation a échoué.
+
 **Erreur : `device not found`**
 - Vérifiez que votre TV est bien connectée au réseau
-- Vérifiez que vous avez configuré la connexion dans Tizen Studio
+- Connectez-vous manuellement :
+  ```powershell
+  cd C:\tizen-studio\tools\ide\bin
+  .\sdb connect IP_DE_VOTRE_TV
+  .\sdb devices
+  ```
 
 **HyperTizen ne démarre pas**
-- Vérifiez que TizenBrew est bien installé
-- Consultez les logs via le navigateur (port 45678)
+- Vérifiez que TizenBrew est bien installé sur la TV
+- Sur la TV, dans TizenBrew, vérifiez que "HyperTizen Service" apparaît
+- Lancez le service HyperTizen AVANT de lancer HyperTizen UI
+- Consultez les logs via le navigateur (port 45678) après avoir démarré le service
 
 **Les captures sont lentes ou saccadées**
 - Normal sur Tizen 6 avec la méthode Pixel Sampling
