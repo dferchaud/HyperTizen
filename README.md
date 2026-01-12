@@ -1,7 +1,7 @@
-# HyperTizen - Tizen 8.0+ Fork
+# HyperTizen - Fork Multi-Version Tizen
 
 ### Color up your Tizen TV with HyperTizen!
-HyperTizen is a Hyperion / HyperHDR capturer for Tizen TVs.
+HyperTizen is a Hyperion / HyperHDR capturer for Tizen TVs (Tizen 6, 7, 8, and 9+).
 
 ---
 
@@ -17,11 +17,11 @@ If you somehow find this useful, or just want to support questionable AI-driven 
 
 ## About This Fork
 
-This is an **experimental fork** of [HyperTizen](https://github.com/reisxd/HyperTizen) focused on exploring screen capture functionality for **Tizen 8.0+ TVs**. The original HyperTizen uses capture APIs that may have different availability on newer TV models. This fork provides a scaffolding structure for researching and implementing potential capture methods for Tizen 8.0+ compatibility.
+This is a fork of [HyperTizen](https://github.com/reisxd/HyperTizen) with extended support for **Tizen 6, 7, 8, and 9+ TVs**. The original HyperTizen primarily supported Tizen 7. This fork implements multiple capture methods with automatic detection to support a wider range of Samsung TV models.
 
-### Status: Active Development
+### Status: Functional
 
-This fork is focused on implementing screen capture functionality for **Tizen 8.0+ TVs**.
+This fork supports screen capture on **Tizen 6, 7, 8, and 9+ TVs** with automatic method selection.
 
 **✅ Pixel Sampling Capture Method**: Now **IMPLEMENTED** using `libvideoenhance.so`
 - Samples 16 pixels from screen edges for ambient lighting
@@ -178,71 +178,196 @@ To test the pixel sampling capture method on your Tizen 8.0+ TV:
 
 ---
 
-## Installation
+## Compatibilité TV Samsung
 
-**Note:** The Pixel Sampling capture method is now implemented. Build and install to test on your Tizen 8.0+ TV.
+### TVs Testées et Confirmées
 
-To install HyperTizen on your Samsung TV running Tizen, you'll need Tizen Studio. You can download it from the [official website](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/installing-tv-sdk.html).
+Ce projet est compatible avec les TVs Samsung suivantes :
 
-### Installation Steps
+#### Tizen 6.0 (2021)
+- **Samsung Q80A Series** (confirmé)
+  - QE55Q80A ✅
+  - Autres modèles Q80A (devrait fonctionner)
 
-1. Download the latest release from the [releases page](https://github.com/reisxd/HyperTizen/releases/latest) (or build from this fork).
+#### Tizen 7, 8, 9+
+- Compatibilité via détection automatique de la méthode de capture
+- Le système teste plusieurs méthodes et sélectionne automatiquement celle qui fonctionne
 
-2. Change the Host PC IP address to your PC's IP address by following [this guide](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html#Connecting-the-TV-and-SDK)
+### Comment vérifier la compatibilité de votre TV
 
-3. Install the package:
+1. **Vérifier votre version Tizen :**
+   - Allez dans **Paramètres** → **Support** → **À propos de ce téléviseur**
+   - Notez la version du logiciel (contient la version Tizen)
+
+2. **Versions Tizen par année de modèle :**
+   - 2021 : Tizen 6.0 (ex: Q80A, Q90A, etc.)
+   - 2022 : Tizen 6.5/7.0
+   - 2023 : Tizen 7.0/8.0
+   - 2024+ : Tizen 8.0/9.0+
+
+### Méthodes de capture supportées
+
+Le projet détecte automatiquement et utilise la meilleure méthode disponible :
+
+| Méthode | Tizen Version | Performance | Description |
+|---------|---------------|-------------|-------------|
+| **T9 Video Capture** | Tizen 9+ | ⚡⚡⚡ Excellente | Capture vidéo complète (priorité haute) |
+| **T9 Display Capture** | Tizen 9+ | ⚡⚡ Bonne | Capture d'affichage alternative |
+| **T8 SDK Capture** | Tizen 8 | ⚡ Moyenne | Méthode SDK Tizen 8 |
+| **T7 SDK Capture** | Tizen 7 | ⚡ Moyenne | Méthode SDK Tizen 7 |
+| **Pixel Sampling** | Tizen 6+ | ⚠️ Basique | Échantillonnage de 16 pixels (fallback universel) |
+
+**Note :** La méthode "Pixel Sampling" fonctionne sur toutes les versions de Tizen mais offre des performances limitées. C'est la méthode qui sera utilisée sur le **QE55Q80A (Tizen 6.0)**.
+
+---
+
+## Installation sur votre TV Samsung
+
+### Prérequis
+
+Avant de commencer, vous aurez besoin de :
+
+1. **Un ordinateur** (Windows, Mac ou Linux)
+2. **Tizen Studio** - Téléchargeable sur le [site officiel Samsung](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/installing-tv-sdk.html)
+3. **Votre TV Samsung** connectée au même réseau que votre ordinateur
+4. **TizenBrew** installé sur votre TV (voir ci-dessous)
+
+### Étape 1 : Installer TizenBrew sur votre TV
+
+TizenBrew est nécessaire pour exécuter HyperTizen. Suivez le guide complet d'installation :
+
+👉 [Guide d'installation TizenBrew](https://github.com/reisxd/TizenBrew/blob/main/docs/README.md)
+
+### Étape 2 : Préparer Tizen Studio
+
+1. **Télécharger et installer Tizen Studio** depuis le [site Samsung](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/installing-tv-sdk.html)
+
+2. **Configurer la connexion avec votre TV :**
+   - Suivez [ce guide](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html#Connecting-the-TV-and-SDK)
+   - Notez l'adresse IP de votre TV (trouvable dans **Paramètres** → **Général** → **Réseau** → **État du réseau**)
+
+3. **Créer un profil de certificat :**
+   - Suivez [ce guide](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/creating-certificates.html)
+   - Notez le nom de votre profil (ex: "HyperTizen")
+
+### Étape 3 : Télécharger ou Compiler HyperTizen
+
+**Option A : Télécharger la version précompilée (recommandé)**
+
+Téléchargez le fichier `.tpk` depuis la [page des releases](https://github.com/reisxd/HyperTizen/releases/latest)
+
+**Option B : Compiler depuis les sources**
+
+Voir la section [Building from Source](#building-from-source) ci-dessous.
+
+### Étape 4 : Signer le package (obligatoire)
+
+Le package doit être signé avec vos propres certificats :
+
 ```bash
-tizen install -n path/to/io.gh.reisxd.HyperTizen.tpk
+tizen package -t tpk -s VotreNomDeProfil -o dossier/de/sortie -- chemin/vers/io.gh.reisxd.HyperTizen.tpk
 ```
 
-Note that `tizen` is in `C:\tizen-studio\tools\ide\bin` on Windows and in `~/tizen-studio/tools/ide/bin` on Linux.
+**Exemple concret :**
+```bash
+# Windows (depuis PowerShell ou CMD)
+cd C:\tizen-studio\tools\ide\bin
+.\tizen package -t tpk -s HyperTizen -o C:\HyperTizen\signed -- C:\HyperTizen\io.gh.reisxd.HyperTizen.tpk
 
-If you get `install failed[118, -12], reason: Check certificate error` error, you'll have to resign the package (see below).
+# Linux/Mac
+cd ~/tizen-studio/tools/ide/bin
+./tizen package -t tpk -s HyperTizen -o ~/HyperTizen/signed -- ~/HyperTizen/io.gh.reisxd.HyperTizen.tpk
+```
 
-4. Install TizenBrew to your TV. Follow [this guide](https://github.com/reisxd/TizenBrew/blob/main/docs/README.md).
+Remplacez :
+- `HyperTizen` par le nom de votre profil de certificat
+- Les chemins par vos propres chemins
 
-5. **Install the HyperTizen UI** via TizenBrew's GitHub module manager:
+### Étape 5 : Installer sur la TV
 
-   **Using the Module Manager:**
-   - Press the **[GREEN]** button on your remote to open TizenBrew module manager
-   - Navigate to "Add GitHub Module"
-   - Enter the module path:
+```bash
+tizen install -n chemin/vers/le/fichier/signé.tpk
+```
 
-   **Install from this fork** (Tizen 8+ with pixel sampling):
+**Exemple concret :**
+```bash
+# Windows
+cd C:\tizen-studio\tools\ide\bin
+.\tizen install -n C:\HyperTizen\signed\io.gh.reisxd.HyperTizen.tpk
+
+# Linux/Mac
+cd ~/tizen-studio/tools/ide/bin
+./tizen install -n ~/HyperTizen/signed/io.gh.reisxd.HyperTizen.tpk
+```
+
+**Note :** La commande `tizen` se trouve dans :
+- Windows : `C:\tizen-studio\tools\ide\bin\`
+- Linux/Mac : `~/tizen-studio/tools/ide/bin/`
+
+### Étape 6 : Installer l'interface HyperTizen UI
+
+Utilisez le gestionnaire de modules de TizenBrew :
+
+1. **Appuyez sur le bouton [VERT]** de votre télécommande pour ouvrir TizenBrew
+2. **Naviguez vers "Add GitHub Module"**
+3. **Entrez le chemin du module :**
+
    ```
    iceteaSA/HyperTizen/HyperTizenUI
    ```
 
-   **Install from original repo** (Tizen 7 only):
+   (Pour ce fork avec support Tizen 6/7/8/9)
+
+4. **Validez** et attendez l'installation
+
+### Étape 7 : Lancer HyperTizen
+
+1. Ouvrez TizenBrew (bouton [VERT])
+2. Trouvez et lancez **HyperTizen UI**
+3. Configurez votre serveur Hyperion/HyperHDR
+4. Démarrez la capture !
+
+### Vérification de l'installation
+
+Pour vérifier que HyperTizen fonctionne correctement sur votre **QE55Q80A** :
+
+1. **Ouvrez les logs dans votre navigateur :**
    ```
-   reisxd/HyperTizen/HyperTizenUI
+   http://IP_DE_VOTRE_TV:45678
    ```
 
-   **Format:**
+2. **Vous devriez voir :**
    ```
-   <username>/<repository>/<folder-path>
+   Current Tizen version: 6.0
+   Testing methods in priority order...
+   PixelSampling: Library found, available
+   PixelSampling Test: SUCCESS
+   ✓ SELECTED: Pixel Sampling
    ```
-   - Installs from the default branch (usually `main`)
-   - `username/repository` - GitHub repository owner and name
-   - `folder-path` - Path to the app folder within the repository
 
-   > **Note:** To test development branches, you'll need to manually update files on your TV or wait for the branch to be merged to main.
+3. **Ouvrez le panneau de contrôle :**
+   - Téléchargez `controls.html` de ce dépôt
+   - Ouvrez-le dans votre navigateur
+   - Entrez l'IP de votre TV
+   - Contrôlez HyperTizen depuis votre ordinateur/téléphone
 
-### Resigning the Package
+### Résolution de problèmes
 
-1. Change the Host PC IP address to your PC's IP address by following [this guide](https://developer.samsung.com/smarttv/develop/getting-started/using-sdk/tv-device.html#Connecting-the-TV-and-SDK)
+**Erreur : `install failed[118, -12], reason: Check certificate error`**
+- Vous devez signer le package avec vos certificats (voir Étape 4)
 
-2. After following the guide for the Tizen Studio installation, you have to create a certificate profile. You can follow [this guide](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/creating-certificates.html).
+**Erreur : `device not found`**
+- Vérifiez que votre TV est bien connectée au réseau
+- Vérifiez que vous avez configuré la connexion dans Tizen Studio
 
-3. Sign the package:
-```bash
-tizen package -t tpk -s YourProfileName -o path/to/output/dir -- path/to/io.gh.reisxd.HyperTizen.tpk
+**HyperTizen ne démarre pas**
+- Vérifiez que TizenBrew est bien installé
+- Consultez les logs via le navigateur (port 45678)
 
-# Example:
-# tizen package -t tpk -s HyperTizen -o release -- io.gh.reisxd.HyperTizen.tpk
-```
-
-4. You should now be able to install the package.
+**Les captures sont lentes ou saccadées**
+- Normal sur Tizen 6 avec la méthode Pixel Sampling
+- La qualité dépend des performances de votre TV
+- Considérez réduire le nombre de LEDs dans Hyperion/HyperHDR
 
 ---
 
