@@ -382,22 +382,25 @@ Avant de commencer, vous devez installer :
 3. **Visual Studio 2019/2022** (Windows) ou **Visual Studio Code** (Linux/Mac)
 4. **Tizen.NET SDK** - Installable via Visual Studio Extension Manager ou dotnet CLI
 
-### Étape 1 : Installer Tizen.NET SDK
+### Étape 1 : Installer les outils de développement
 
-#### Option A : Via Visual Studio (Windows/Mac)
-1. Ouvrez Visual Studio
-2. Allez dans **Extensions** → **Manage Extensions**
-3. Recherchez "**Visual Studio Tools for Tizen**"
-4. Installez l'extension et redémarrez Visual Studio
+#### Option A : Via Visual Studio (Windows/Mac) - RECOMMANDÉ
+1. Installez **Visual Studio 2022 Community** (gratuit) : https://visualstudio.microsoft.com/
+2. Ouvrez Visual Studio
+3. Allez dans **Extensions** → **Manage Extensions**
+4. Recherchez "**Visual Studio Tools for Tizen**"
+5. Installez l'extension et redémarrez Visual Studio
 
-#### Option B : Via dotnet CLI (Linux/Mac/Windows)
+#### Option B : Via .NET SDK uniquement (Linux/Mac/Windows)
 ```bash
-# Vérifier que dotnet est installé
+# Vérifier que .NET SDK 6.0+ est installé
 dotnet --version
 
-# Installer le template Tizen
-dotnet new --install Tizen.NET.Sdk
+# C'est tout ! Pas besoin d'installer de template pour compiler un projet existant.
+# Les packages Tizen.NET seront téléchargés automatiquement via NuGet.
 ```
+
+**Note importante :** L'installation du template Tizen (`dotnet new --install Tizen.NET.Sdk`) n'est nécessaire que pour **créer de nouveaux projets**. Pour compiler HyperTizen (projet existant), vous avez uniquement besoin du .NET SDK.
 
 ### Étape 2 : Cloner le dépôt
 
@@ -475,13 +478,13 @@ tizen install -n /chemin/vers/le/fichier.tpk
 
 ### Résolution de problèmes de compilation
 
-**Erreur : "Tizen.NET.Sdk not found"**
-```bash
-# Installer le SDK Tizen.NET
-dotnet new --install Tizen.NET.Sdk
-```
+**Erreur : "Aucun modèle n'a été trouvé dans le package Tizen.NET.Sdk"**
+- Cette erreur est normale et peut être ignorée
+- Cette erreur apparaît si vous essayez `dotnet new --install Tizen.NET.Sdk`
+- **Solution** : Vous n'avez pas besoin de cette commande ! Compilez directement avec `dotnet build`
+- Les templates ne sont nécessaires que pour créer de NOUVEAUX projets, pas pour compiler un projet existant
 
-**Erreur : "Could not load type 'Tizen.xxx'"**
+**Erreur : "Could not load type 'Tizen.xxx'" ou "Tizen.NET.Sdk not found"**
 - Vérifiez que tous les packages NuGet sont restaurés :
   ```bash
   dotnet restore HyperTizen/HyperTizen.csproj --force
