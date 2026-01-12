@@ -371,11 +371,192 @@ Pour vérifier que HyperTizen fonctionne correctement sur votre **QE55Q80A** :
 
 ---
 
-## Building from Source
+## Compiler depuis les sources (Building from Source)
 
-See the original [HyperTizen documentation](./docs/README.md) for general build instructions.
+### Prérequis pour la compilation
 
-For this fork, additional development tools may be required for testing and debugging the Tizen 8+ capture methods.
+Avant de commencer, vous devez installer :
+
+1. **Tizen Studio** - [Télécharger ici](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/installing-tv-sdk.html)
+2. **.NET SDK 6.0 ou supérieur** - [Télécharger ici](https://dotnet.microsoft.com/download)
+3. **Visual Studio 2019/2022** (Windows) ou **Visual Studio Code** (Linux/Mac)
+4. **Tizen.NET SDK** - Installable via Visual Studio Extension Manager ou dotnet CLI
+
+### Étape 1 : Installer Tizen.NET SDK
+
+#### Option A : Via Visual Studio (Windows/Mac)
+1. Ouvrez Visual Studio
+2. Allez dans **Extensions** → **Manage Extensions**
+3. Recherchez "**Visual Studio Tools for Tizen**"
+4. Installez l'extension et redémarrez Visual Studio
+
+#### Option B : Via dotnet CLI (Linux/Mac/Windows)
+```bash
+# Vérifier que dotnet est installé
+dotnet --version
+
+# Installer le template Tizen
+dotnet new --install Tizen.NET.Sdk
+```
+
+### Étape 2 : Cloner le dépôt
+
+```bash
+git clone https://github.com/iceteaSA/HyperTizen.git
+cd HyperTizen
+```
+
+Ou clonez le dépôt original :
+```bash
+git clone https://github.com/reisxd/HyperTizen.git
+cd HyperTizen
+```
+
+### Étape 3 : Restaurer les dépendances
+
+```bash
+dotnet restore HyperTizen/HyperTizen.csproj
+```
+
+### Étape 4 : Compiler le projet
+
+#### Option A : Avec Visual Studio
+1. Ouvrez `HyperTizen.sln` dans Visual Studio
+2. Sélectionnez **Release** dans la barre d'outils
+3. Cliquez sur **Build** → **Build Solution** (ou `Ctrl+Shift+B`)
+4. Les fichiers compilés seront dans `HyperTizen/bin/Release/tizen90/`
+
+#### Option B : Avec dotnet CLI
+```bash
+# Compilation en mode Release
+dotnet build HyperTizen/HyperTizen.csproj -c Release
+
+# Ou compilation en mode Debug
+dotnet build HyperTizen/HyperTizen.csproj -c Debug
+```
+
+Les fichiers compilés seront dans :
+- Release : `HyperTizen/bin/Release/tizen90/`
+- Debug : `HyperTizen/bin/Debug/tizen90/`
+
+### Étape 5 : Créer le package TPK
+
+Une fois le projet compilé, vous devez créer un package TPK :
+
+```bash
+# Naviguer vers les outils Tizen Studio
+cd C:\tizen-studio\tools\ide\bin  # Windows
+cd ~/tizen-studio/tools/ide/bin   # Linux/Mac
+
+# Créer le package TPK (non signé)
+tizen package -t tpk -s VOTRE_PROFIL -- /chemin/vers/HyperTizen/HyperTizen/bin/Release/tizen90
+```
+
+**Exemple complet (Windows) :**
+```bash
+cd C:\tizen-studio\tools\ide\bin
+.\tizen package -t tpk -s HyperTizen -o C:\HyperTizen\build -- C:\HyperTizen\HyperTizen\bin\Release\tizen90
+```
+
+**Exemple complet (Linux/Mac) :**
+```bash
+cd ~/tizen-studio/tools/ide/bin
+./tizen package -t tpk -s HyperTizen -o ~/HyperTizen/build -- ~/HyperTizen/HyperTizen/bin/Release/tizen90
+```
+
+Le fichier TPK signé sera créé dans le dossier de sortie spécifié.
+
+### Étape 6 : Installer sur votre TV
+
+```bash
+# Depuis le même répertoire tizen-studio/tools/ide/bin
+tizen install -n /chemin/vers/le/fichier.tpk
+```
+
+### Résolution de problèmes de compilation
+
+**Erreur : "Tizen.NET.Sdk not found"**
+```bash
+# Installer le SDK Tizen.NET
+dotnet new --install Tizen.NET.Sdk
+```
+
+**Erreur : "Could not load type 'Tizen.xxx'"**
+- Vérifiez que tous les packages NuGet sont restaurés :
+  ```bash
+  dotnet restore HyperTizen/HyperTizen.csproj --force
+  ```
+
+**Erreur lors du packaging : "author-certificate.xml not found"**
+- Vous devez créer un profil de certificat dans Tizen Studio
+- Suivez [ce guide](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/creating-certificates.html)
+
+**Erreur : "TIZEN_HOME not set"**
+```bash
+# Windows
+set TIZEN_HOME=C:\tizen-studio
+
+# Linux/Mac
+export TIZEN_HOME=~/tizen-studio
+```
+
+### Structure du projet
+
+```
+HyperTizen/
+├── HyperTizen/                  # Projet principal
+│   ├── Capture/                # Méthodes de capture d'écran
+│   │   ├── CaptureMethodSelector.cs
+│   │   ├── PixelSamplingCaptureMethod.cs
+│   │   ├── T7SdkCaptureMethod.cs
+│   │   ├── T8SdkCaptureMethod.cs
+│   │   ├── T9DisplayCaptureMethod.cs
+│   │   └── T9VideoCaptureMethod.cs
+│   ├── HyperTizen.csproj       # Configuration du projet
+│   ├── tizen-manifest.xml      # Manifest Tizen
+│   └── HyperTizen_App.cs       # Point d'entrée
+├── HyperTizenUI/               # Interface utilisateur
+├── HyperTizen.sln              # Solution Visual Studio
+└── README.md
+```
+
+### Développement et debug
+
+Pour développer et débugger HyperTizen :
+
+1. **Mode Debug** : Compilez en mode Debug pour avoir les symboles de débogage
+   ```bash
+   dotnet build HyperTizen/HyperTizen.csproj -c Debug
+   ```
+
+2. **Logs en temps réel** : Utilisez le log viewer web (port 45678) pour voir les logs de votre TV
+   ```
+   http://IP_DE_VOTRE_TV:45678
+   ```
+
+3. **Modifications du code** :
+   - Les méthodes de capture sont dans `HyperTizen/Capture/`
+   - Le sélecteur de méthode est dans `CaptureMethodSelector.cs`
+   - La configuration réseau est dans `Networking.cs`
+
+### Notes importantes
+
+- Le projet cible **Tizen 9.0** (`tizen90`) mais reste compatible avec Tizen 6, 7 et 8
+- Les dépendances NuGet incluent :
+  - `Google.FlatBuffers` : Sérialisation pour Hyperion
+  - `Newtonsoft.Json` : Parsing JSON
+  - `Rssdp` : Découverte SSDP pour Hyperion/HyperHDR
+  - `Tizen.NET.TV` : API Tizen TV
+- Le code utilise `AllowUnsafeBlocks=true` pour accéder aux bibliothèques natives (`libvideoenhance.so`)
+
+### Contribuer au projet
+
+Si vous souhaitez contribuer :
+
+1. Forkez le dépôt
+2. Créez une branche pour votre fonctionnalité
+3. Testez sur du matériel réel (TV Samsung)
+4. Soumettez une pull request avec des logs et captures d'écran
 
 ---
 
