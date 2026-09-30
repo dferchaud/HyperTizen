@@ -8,11 +8,12 @@ Cette branche repart du fork [lowryn/HyperTizen](https://github.com/lowryn/Hyper
 
 Vérifié sur la TV :
 - Le service démarre, écoute sur le port 8086 et répond à `/logs`, `/set` et `/frame.bmp`.
+- Le service est lancé depuis la TV par le module TizenBrew (lancement par sdb), sans PC, et l'interface s'y connecte.
 - La capture plein cadre **fonctionne** : `secvideo_api_capture_screen` (`/usr/lib/libsec-video-capture.so.0`) renvoie 0, et `/frame.bmp` affiche bien l'image de la TV (NV12, 480x270).
 
 Non vérifié :
 - L'envoi des images à HyperHDR / Hyperion (aucun serveur n'était disponible lors des tests).
-- Le lancement automatique du service au démarrage de la TV (`on-boot` est déclaré dans le manifest mais n'a pas été constaté).
+- Le démarrage automatique après un redémarrage de la TV (`on-boot` du manifest n'est pas respecté ; il faut que TizenBrew soit lancé et que « Autolaunch service » soit coché).
 - Le comportement avec du contenu protégé (DRM), qui ne peut pas être capturé.
 - Le rendu des couleurs et la latence en conditions réelles.
 
@@ -123,7 +124,7 @@ Ce serveur n'a pas d'authentification et écoute sur tout le réseau local ; il 
 
 Dans TizenBrew, **Settings > Autolaunch service** permet de démarrer ce script dès que TizenBrew démarre.
 
-Vérifié seulement avec un faux `sdbd` construit avec le code de paquets d'`adbhost` : le lancement par sdb n'a pas été essayé sur la TV. Non vérifié non plus : que TizenBrew soit lui-même lancé au démarrage de la TV, et que jsDelivr serve la dernière version du script (le cache peut durer plusieurs heures ; on peut épingler un commit : `dferchaud/HyperTizen@<commit>/HyperTizenUI`).
+Vérifié sur le QE55Q80A : le lancement par sdb fonctionne. Non vérifié : que TizenBrew soit lui-même lancé au démarrage de la TV, et que jsDelivr serve la dernière version du script (le cache peut durer plusieurs heures ; on peut épingler un commit : `dferchaud/HyperTizen@<commit>/HyperTizenUI`).
 
 ### Installer l'interface comme appli TV (sans TizenBrew)
 
