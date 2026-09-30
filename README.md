@@ -104,6 +104,19 @@ Commandes à la télécommande : flèches haut/bas pour naviguer, Entrée pour v
 
 Ce qui n'est pas vérifié : la logique de l'interface a été testée avec un faux navigateur et un faux service, pas sur une vraie TV. On ne sait pas si le lancement du service par cette page fonctionne sur votre firmware, ni si TizenBrew expose `tizen.application` aux modules. Le service fonctionne sans l'interface.
 
+### Installer l'interface comme appli TV (sans TizenBrew)
+
+TizenBrew exige une IP de mode développeur (`127.0.0.1`) incompatible avec `tizen run` depuis le PC, et la page n'y a pas accès à `tizen.application`. Installée comme appli TV, la page a ses propres droits et peut lancer le service. Non vérifié sur la TV.
+
+```powershell
+cd C:\tizen-studio\tools\ide\bin
+.\tizen package -t wgt -s VotreProfil -o C:\chemin\build -- C:\chemin\HyperTizen\HyperTizenUI
+.\tizen install -n C:\chemin\build\HyperTizen.wgt -s IP_TV:26101
+.\tizen run -p 6jwjAZfoVq.HyperTizenUI -s IP_TV:26101
+```
+
+Le nom exact du fichier `.wgt` est affiché par la commande `package`. L'IP du PC doit être dans le mode développeur.
+
 TizenBrew installe un module depuis la branche par défaut de son dépôt : tant que cette branche n'y est pas fusionnée, le module installé peut être une autre version.
 
 ## Crédits
