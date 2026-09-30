@@ -28,21 +28,41 @@ namespace HyperTizen.WebSocket
             _httpListener.Prefixes.Add(uriPrefix);
         }
 
-        public async Task StartAsync()
+        public void Start()
         {
             _httpListener.Start();
+        }
+
+        public void Stop()
+        {
+            try { _httpListener.Close(); } catch { }
+        }
+
+        public async Task RunAsync()
+        {
             while (true)
             {
-                var httpContext = await _httpListener.GetContextAsync();
-                if (httpContext.Request.IsWebSocketRequest)
+                try
                 {
-                    var wsContext = await httpContext.AcceptWebSocketAsync(null);
-                    _ = HandleWebSocketAsync(wsContext.WebSocket);
+                    var httpContext = await _httpListener.GetContextAsync();
+                    if (httpContext.Request.IsWebSocketRequest)
+                    {
+                        var wsContext = await httpContext.AcceptWebSocketAsync(null);
+                        _ = HandleWebSocketAsync(wsContext.WebSocket);
+                    }
+                    else
+                    {
+                        httpContext.Response.StatusCode = 400;
+                        httpContext.Response.Close();
+                    }
                 }
-                else
+                catch (ObjectDisposedException)
                 {
-                    httpContext.Response.StatusCode = 400;
-                    httpContext.Response.Close();
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Tizen.Log.Debug("HyperTizen", "Control server request failed: " + ex.Message);
                 }
             }
         }
@@ -164,10 +184,37 @@ namespace HyperTizen.WebSocket
 
     public static class WebSocketServer
     {
+        private static readonly string[] Prefixes =
+        {
+            "http://*:8086/",
+            "http://+:8086/",
+        };
+
+        // Keeps trying: the network stack may not be ready right after boot,
+        // and a prefix can be refused on some firmware versions.
         public static async Task StartServerAsync()
         {
-            var wsServer = new WSServer("http://+:8086/");
-            await wsServer.StartAsync();
+            while (true)
+            {
+                foreach (string prefix in Prefixes)
+                {
+                    WSServer server = null;
+                    try
+                    {
+                        server = new WSServer(prefix);
+                        server.Start();
+                        Tizen.Log.Debug("HyperTizen", "Control server listening on " + prefix);
+                        await server.RunAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Tizen.Log.Debug("HyperTizen", "Control server on " + prefix + " failed: " + ex.GetType().Name + " " + ex.Message);
+                        server?.Stop();
+                    }
+                }
+
+                await Task.Delay(5000);
+            }
         }
     }
 
