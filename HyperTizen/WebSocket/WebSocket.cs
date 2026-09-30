@@ -71,6 +71,30 @@ namespace HyperTizen.WebSocket
                         httpContext.Response.OutputStream.Write(okBody, 0, okBody.Length);
                         httpContext.Response.Close();
                     }
+                    else if (httpContext.Request.Url.AbsolutePath == "/frame.bmp")
+                    {
+                        byte[] bmp = null;
+                        string frameError = "capture returned no frame (see /logs)";
+                        try { bmp = VideoCapture.SnapshotBmp(); }
+                        catch (Exception ex) { frameError = ex.GetType().Name + " " + ex.Message; }
+
+                        if (bmp == null)
+                        {
+                            Diag.Log("GET /frame.bmp failed: " + frameError);
+                            byte[] msg = Encoding.UTF8.GetBytes(frameError);
+                            httpContext.Response.StatusCode = 503;
+                            httpContext.Response.ContentType = "text/plain; charset=utf-8";
+                            httpContext.Response.ContentLength64 = msg.Length;
+                            httpContext.Response.OutputStream.Write(msg, 0, msg.Length);
+                        }
+                        else
+                        {
+                            httpContext.Response.ContentType = "image/bmp";
+                            httpContext.Response.ContentLength64 = bmp.Length;
+                            httpContext.Response.OutputStream.Write(bmp, 0, bmp.Length);
+                        }
+                        httpContext.Response.Close();
+                    }
                     else if (httpContext.Request.Url.AbsolutePath == "/logs")
                     {
                         byte[] body = Encoding.UTF8.GetBytes(Diag.Dump());

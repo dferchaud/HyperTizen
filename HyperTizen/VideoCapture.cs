@@ -54,8 +54,72 @@ namespace HyperTizen
             return CaptureRaw();
         }
 
+        private static readonly object _captureLock = new object();
+
         // Returns captured frame data, or null if capture failed (DRM, scaler error, etc.)
         public static (byte[] yData, byte[] uvData)? CaptureFrame()
+        {
+            lock (_captureLock)
+                return CaptureFrameCore();
+        }
+
+        // One fresh capture converted to a top-down 24-bit BMP, for checking the picture in a browser.
+        public static byte[] SnapshotBmp()
+        {
+            byte[] y, uv;
+            lock (_captureLock)
+            {
+                InitCapture();
+                var frame = CaptureFrameCore();
+                if (!frame.HasValue) return null;
+                y = (byte[])frame.Value.yData.Clone();
+                uv = (byte[])frame.Value.uvData.Clone();
+            }
+
+            int rowBytes = Width * 3;
+            var bmp = new byte[54 + rowBytes * Height];
+            bmp[0] = (byte)'B'; bmp[1] = (byte)'M';
+            PutInt(bmp, 2, bmp.Length);
+            PutInt(bmp, 10, 54);
+            PutInt(bmp, 14, 40);
+            PutInt(bmp, 18, Width);
+            PutInt(bmp, 22, -Height);
+            bmp[26] = 1;
+            bmp[28] = 24;
+            PutInt(bmp, 34, rowBytes * Height);
+
+            for (int row = 0; row < Height; row++)
+            {
+                for (int col = 0; col < Width; col++)
+                {
+                    int yy = y[row * Width + col] - 16;
+                    int uvIndex = (row / 2) * Width + (col / 2) * 2;
+                    int u = uv[uvIndex] - 128;
+                    int v = uv[uvIndex + 1] - 128;
+                    int c = 298 * yy;
+                    int o = 54 + row * rowBytes + col * 3;
+                    bmp[o]     = Clamp((c + 516 * u + 128) >> 8);
+                    bmp[o + 1] = Clamp((c - 100 * u - 208 * v + 128) >> 8);
+                    bmp[o + 2] = Clamp((c + 409 * v + 128) >> 8);
+                }
+            }
+            return bmp;
+        }
+
+        private static void PutInt(byte[] b, int offset, int value)
+        {
+            b[offset] = (byte)value;
+            b[offset + 1] = (byte)(value >> 8);
+            b[offset + 2] = (byte)(value >> 16);
+            b[offset + 3] = (byte)(value >> 24);
+        }
+
+        private static byte Clamp(int v)
+        {
+            return (byte)(v < 0 ? 0 : v > 255 ? 255 : v);
+        }
+
+        private static (byte[] yData, byte[] uvData)? CaptureFrameCore()
         {
             bool legacyApi = SDK.SystemInfo.TizenVersionMajor < 8;
             var info = new SDK.SecVideoCapture.Info_t
