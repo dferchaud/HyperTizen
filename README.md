@@ -1,147 +1,123 @@
-# HyperTizen (base lowryn, adaptée Tizen 6.0)
+# HyperTizen (Tizen 6.0 fork)
 
-Capture d'ambiance pour HyperHDR / Hyperion sur TV Samsung Tizen.
+Ambient-lighting capturer for **HyperHDR** on Samsung Tizen TVs. It captures the TV picture on the TV itself and streams it to HyperHDR over the network.
 
-Cette branche repart du fork [lowryn/HyperTizen](https://github.com/lowryn/HyperTizen) (lui-même basé sur [reisxd/HyperTizen](https://github.com/reisxd/HyperTizen) et les recherches de [SryEyes](https://github.com/SryEyes/HyperTizen)) et l'adapte à un **Samsung QE55Q80A (Tizen 6.0, 2021)**.
+This fork starts from [lowryn/HyperTizen](https://github.com/lowryn/HyperTizen) (itself based on [reisxd/HyperTizen](https://github.com/reisxd/HyperTizen) and [SryEyes](https://github.com/SryEyes/HyperTizen)) and adapts it to a **Samsung QE55Q80A (Tizen 6.0, 2021)**.
 
-## État réel (QE55Q80A, Tizen 6.0)
+## Status
 
-Vérifié sur la TV :
-- Le service démarre, écoute sur le port 8086 et répond à `/logs`, `/set` et `/frame.bmp`.
-- Le service est lancé depuis la TV par le module TizenBrew (lancement par sdb), sans PC, et l'interface s'y connecte.
-- La capture plein cadre **fonctionne** : `secvideo_api_capture_screen` (`/usr/lib/libsec-video-capture.so.0`) renvoie 0, et `/frame.bmp` affiche bien l'image de la TV (NV12, 480x270).
+Verified on a QE55Q80AATXXC (Tizen 6.0), with HyperHDR running on a PC:
 
-- L'envoi des images à HyperHDR (FlatBuffers/TCP, port 19400) fonctionne : le retour vidéo s'affiche dans HyperHDR. Testé avec HyperHDR sur un PC ; le support de Hyperion n'a pas été testé.
+- Full-frame capture works: `secvideo_api_capture_screen` from `libsec-video-capture.so.0` returns NV12 480x270 frames.
+- The frames reach HyperHDR over FlatBuffers/TCP (port 19400) and the video feed shows up in HyperHDR.
+- The native service is started from the TV by the TizenBrew module, with no PC involved, and the TV UI connects to it.
 
-Non vérifié :
-- Le démarrage automatique après un redémarrage de la TV (`on-boot` du manifest n'est pas respecté ; il faut que TizenBrew soit lancé et que « Autolaunch service » soit coché).
-- Le comportement avec du contenu protégé (DRM), qui ne peut pas être capturé.
-- Le rendu des couleurs et la latence en conditions réelles.
+Not verified or not working:
 
-## Ce qu'on a découvert sur ce firmware
+- **The service does not start by itself after the TV reboots.** Open TizenBrew and launch the HyperTizen module each time (see [Daily use](#daily-use)).
+- Behaviour on standby/wake, colour accuracy and latency in real use.
+- Protected (DRM) content cannot be captured, by design.
+- Hyperion was not tested, only HyperHDR.
 
-- `libvideoenhance.so` (19 Ko) ne contient **aucune** fonction `*rgb_measure*` : la méthode par échantillonnage de pixels est impossible sur ce modèle.
-- `libsec-video-capture.so.0` exporte `secvideo_api_capture_screen`. La structure attendue par cette fonction est plus grande que les 36 octets de `Info_t` : avec une structure de 36 octets, le processus est tué par un débordement mémoire (sans exception). Le code utilise donc un tampon natif de 256 octets, avec les champs aux offsets 0 (taille Y), 4 (taille UV), 16 (pointeur Y) et 20 (pointeur UV).
-- `Newtonsoft.Json` ne se charge pas sur ce firmware (`manifest definition does not match`). Il a été remplacé par un petit lecteur JSON (`MiniJson.cs`).
-- `dlog` ne renvoie rien sur ce modèle : le service garde ses messages en mémoire et dans un fichier.
+## How it works
 
-## Interface HTTP du service (port 8086)
-
-| Adresse | Rôle |
+| Part | What it does |
 |---|---|
-| `GET /logs` | Logs du service, avec ceux de l'exécution précédente (utile après un plantage) |
-| `GET /set?key=K&value=V` | Applique une configuration (`enabled`, `rpcServer`, `fbsServer`, `t7_probe`) |
-| `GET /frame.bmp` | Une capture de l'écran, affichable dans un navigateur |
-| WebSocket | Protocole de `HyperTizenUI` (`SetConfig`, `ReadConfig`, `ScanSSDP`) |
+| `HyperTizen/` | C# native service (`io.gh.reisxd.HyperTizen`). Captures frames, sends them to HyperHDR, and serves a small HTTP/WebSocket control interface on port 8086. |
+| `HyperTizenUI/` | TizenBrew module. `index.html` is the on-TV screen. `js/service.js` runs inside TizenBrew and launches the native service. |
 
-Exemples :
-```powershell
-curl.exe "http://IP_TV:8086/set?key=enabled&value=true"
-curl.exe "http://IP_TV:8086/set?key=fbsServer&value=IP_HYPERHDR:19400"
-curl.exe -i http://IP_TV:8086/logs
-```
+The module script launches the service the same way `tizen run` does: it connects to the TV's own `sdbd` on `127.0.0.1:26101` and sends `shell:0 debug io.gh.reisxd.HyperTizen` (the protocol used by the `adbhost` library that TizenBrew itself relies on). `tizen.application.launch` and `launchAppControl` are kept as fallbacks but fail with `Unknown error` on this TV. `service.js` also serves a status page on port 8087.
 
-Ces points d'accès n'ont aucune authentification : ne les exposez pas hors de votre réseau local.
+## Daily use
 
-## Compilation
+1. Turn the TV on. Make sure HyperHDR is running on your PC.
+2. Open **TizenBrew** (green button on the remote) and launch the **HyperTizen** module. Its script starts the native service. Wait a few seconds.
+3. On the module screen (labels are in French), check that **Service** shows *Connecte*.
+4. Enter the HyperHDR address (`PC-IP:19400`, never `localhost`) and press **Enregistrer** (first time, or when the PC IP changes).
+5. Press **Activer la capture**. The **HyperHDR** line should show *Connecte*.
 
-Prérequis : .NET SDK, Tizen Studio (avec les outils TV) et un profil de certificat Samsung qui contient le DUID de votre TV.
+The enabled state and the HyperHDR address are stored by the service, so after the first setup only steps 2 and 3 are needed. Uninstalling the app resets them.
+
+## First-time setup
+
+### Requirements
+
+- .NET SDK, Tizen Studio with the TV tools, and a Samsung certificate profile that includes your **TV's DUID**.
+- TizenBrew installed on the TV.
+- HyperHDR with the **FlatBuffers server enabled** (port 19400), and an inbound firewall rule for that port on the PC.
+
+### Build and sign
 
 ```powershell
 cd HyperTizen
 dotnet build -c Release --no-incremental
-```
-
-Le TPK est produit dans `HyperTizen/bin/Release/tizen90/io.gh.reisxd.HyperTizen-1.0.0.tpk`. Il faut le re-signer avec votre profil :
-
-```powershell
 cd C:\tizen-studio\tools\ide\bin
-.\tizen package -t tpk -s VotreProfil -- C:\chemin\vers\HyperTizen\bin\Release\tizen90\io.gh.reisxd.HyperTizen-1.0.0.tpk
+.\tizen package -t tpk -s YourProfile -- C:\path\to\HyperTizen\bin\Release\tizen90\io.gh.reisxd.HyperTizen-1.0.0.tpk
 ```
 
-## Installation sur la TV
+The build signs with a default certificate; the `package` step re-signs it with yours. `install failed[118, ...]` means the certificate does not match the TV.
 
-1. Activer le **mode développeur** sur la TV et y mettre l'IP de votre PC comme hôte, puis redémarrer la TV.
-2. Connecter la TV :
-   ```powershell
-   .\sdb connect IP_TV:26101
-   ```
-3. Installer et lancer :
-   ```powershell
-   .\tizen uninstall -p io.gh.reisxd.HyperTizen -s IP_TV:26101
-   .\tizen install -n C:\chemin\vers\io.gh.reisxd.HyperTizen-1.0.0.tpk -s IP_TV:26101
-   .\tizen run -p io.gh.reisxd.HyperTizen -s IP_TV:26101
-   ```
-   Désinstaller d'abord remet les préférences à zéro.
-   `install failed[118, ...]` : le certificat ne correspond pas à la TV (DUID absent).
-4. Activer la capture :
-   ```powershell
-   curl.exe "http://IP_TV:8086/set?key=enabled&value=true"
-   ```
+### Install the service
 
-Si l'IP du PC hôte du mode développeur est remplacée par autre chose (par exemple `127.0.0.1` pour TizenBrew), `sdb connect` et `tizen install` ne fonctionnent plus depuis le PC.
-
-## Diagnostic
-
-Ouvrez `http://IP_TV:8086/logs`. Lignes utiles :
-
-- `Service starting: model=... tizen=...` : le service démarre.
-- `Control server listening on http://*:8086/` : le port est ouvert.
-- `T7 probe: ...` puis `T7 capture probe: secvideo_api_capture_screen returned 0` : la bibliothèque de capture répond.
-- `cap_mode: secvideo-t7` : le mode plein cadre est retenu.
-- `SSDP: no HyperHDR found` : aucun serveur trouvé. Renseignez-le avec `fbsServer`.
-
-Si la sonde native tue le service, le démarrage suivant la saute (`t7_probe` passe à `crashed`). Pour la réessayer : `curl.exe "http://IP_TV:8086/set?key=t7_probe&value=retry"`.
-
-## Interface TizenBrew (HyperTizenUI)
-
-Le dossier `HyperTizenUI` est une appli web affichée sur la TV (module TizenBrew). Elle se connecte au service par WebSocket (port 8086) et affiche :
-- l'état du service, de la capture, le mode de capture et la connexion à HyperHDR ;
-- les derniers messages du journal du service.
-
-Commandes à la télécommande : flèches haut/bas pour naviguer, Entrée pour valider.
-- **Démarrer le service** : demande à la TV de lancer `io.gh.reisxd.HyperTizen` (`tizen.application.launch`). Si le service est injoignable, l'interface essaie aussi de le lancer une fois d'elle-même.
-- **Activer / Désactiver la capture**.
-- **Adresse de HyperHDR** (`IP:port`, port 19400 par défaut) : à renseigner avec l'adresse réseau de la machine qui fait tourner HyperHDR (pas `localhost`).
-
-Ce qui n'est pas vérifié : la logique de l'interface a été testée avec un faux navigateur et un faux service, pas sur une vraie TV. On ne sait pas si le lancement du service par cette page fonctionne sur votre firmware, ni si TizenBrew expose `tizen.application` aux modules. Le service fonctionne sans l'interface.
-
-### Lancement du service par TizenBrew
-
-TizenBrew exécute le script `js/service.js` du module dans un bac à sable Node.js (v12.4.0 sur le QE55Q80A) et le lui charge depuis le CDN jsDelivr, avec mise en cache. Ce script lance le service natif, dans cet ordre :
-
-1. **Par sdb**, comme `tizen run` : connexion à `127.0.0.1:26101` (le `sdbd` de la TV, accessible parce que le mode développeur est réglé sur `127.0.0.1` pour TizenBrew) et commande `shell:0 debug io.gh.reisxd.HyperTizen`. C'est le mécanisme que TizenBrew utilise pour ses propres applis ; le protocole est celui de la bibliothèque `adbhost`.
-2. En repli, `tizen.application.launchAppControl` (opération `service`), puis `tizen.application.launch`. Sur le QE55Q80A, ces deux appels échouent avec `Unknown error`.
-
-Il vérifie que le service répond avant chaque essai (jusqu'à 2 minutes) et ouvre un petit serveur d'état sur le port **8087** :
-- `GET /status` : état, API Tizen disponible ou non, journal des tentatives ;
-- `GET /launch` : demande un lancement et renvoie l'état.
-
-La page (servie par TizenBrew) s'en sert quand elle n'a pas d'API `tizen`. Pour comprendre un échec depuis le PC :
-```powershell
-curl.exe http://IP_TV:8087/status
-```
-Ce serveur n'a pas d'authentification et écoute sur tout le réseau local ; il ne peut que relancer HyperTizen.
-
-Dans TizenBrew, **Settings > Autolaunch service** permet de démarrer ce script dès que TizenBrew démarre.
-
-Vérifié sur le QE55Q80A : le lancement par sdb fonctionne. Non vérifié : que TizenBrew soit lui-même lancé au démarrage de la TV, et que jsDelivr serve la dernière version du script (le cache peut durer plusieurs heures ; on peut épingler un commit : `dferchaud/HyperTizen@<commit>/HyperTizenUI`).
-
-### Installer l'interface comme appli TV (sans TizenBrew)
-
-TizenBrew exige une IP de mode développeur (`127.0.0.1`) incompatible avec `tizen run` depuis le PC, et la page n'y a pas accès à `tizen.application`. Installée comme appli TV, la page a ses propres droits et peut lancer le service. Non vérifié sur la TV.
+The TV's Developer Mode must list **your PC's IP** as the host, otherwise `sdb` refuses the connection.
 
 ```powershell
-cd C:\tizen-studio\tools\ide\bin
-.\tizen package -t wgt -s VotreProfil -o C:\chemin\build -- C:\chemin\HyperTizen\HyperTizenUI
-.\tizen install -n C:\chemin\build\HyperTizen.wgt -s IP_TV:26101
-.\tizen run -p 6jwjAZfoVq.HyperTizenUI -s IP_TV:26101
+.\sdb connect TV_IP:26101
+.\tizen uninstall -p io.gh.reisxd.HyperTizen -s TV_IP:26101
+.\tizen install -n C:\path\to\io.gh.reisxd.HyperTizen-1.0.0.tpk -s TV_IP:26101
 ```
 
-Le nom exact du fichier `.wgt` est affiché par la commande `package`. L'IP du PC doit être dans le mode développeur.
+### Set up TizenBrew
 
-TizenBrew installe un module depuis la branche par défaut de son dépôt : tant que cette branche n'y est pas fusionnée, le module installé peut être une autre version.
+TizenBrew needs Developer Mode's host IP to be `127.0.0.1`, which is incompatible with `sdb` from the PC. Change it and restart the TV (the installed app stays). Switch back to your PC's IP when you need to reinstall.
 
-## Crédits
+In TizenBrew, add the GitHub module:
 
-Projet d'origine par [reisxd](https://github.com/reisxd/HyperTizen). Optimisations de performance par [lowryn](https://github.com/lowryn/HyperTizen). Recherche sur la capture NV12 par [SryEyes](https://github.com/SryEyes/HyperTizen).
+```
+dferchaud/HyperTizen/HyperTizenUI
+```
+
+jsDelivr caches module files for hours. To be sure of getting a given version, pin a commit: `dferchaud/HyperTizen@<commit>/HyperTizenUI`. Then tick **Settings > Autolaunch service** for the module.
+
+## Control interface
+
+Port 8086 (native service). There is **no authentication**: keep it on your local network.
+
+| Request | Purpose |
+|---|---|
+| `GET /logs` | Service log, including the previous run (useful after a crash) |
+| `GET /set?key=K&value=V` | Set `enabled`, `fbsServer`, `rpcServer` or `t7_probe` |
+| `GET /frame.bmp` | One fresh capture, viewable in a browser |
+| WebSocket | Used by the TV screen (`SetConfig`, `ReadConfig`; live keys `connected`, `capturing`, `logs`) |
+
+Port 8087 (module script, only while TizenBrew is running): `GET /status` shows whether the launch worked, and `GET /launch` asks for one.
+
+```powershell
+curl.exe "http://TV_IP:8086/set?key=enabled&value=true"
+curl.exe "http://TV_IP:8086/set?key=fbsServer&value=PC_IP:19400"
+curl.exe -i http://TV_IP:8086/logs
+curl.exe http://TV_IP:8087/status
+```
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| **Service** line shows *Injoignable* | The service is not running. Open `http://TV_IP:8087/status` and read the `sdb:` lines of the log. |
+| `status` page unreachable | TizenBrew is not running or the module script did not start; relaunch the module. You may still have an old cached version: re-add it with a pinned commit. |
+| **HyperHDR** line shows *Non connecte*, `Connection refused` in `/logs` | FlatBuffers server disabled in HyperHDR, wrong IP (use the PC's LAN IP), or the firewall blocks port 19400. |
+| `sdb: authentification demandee` in `/status` | The TV asked for authentication; please report it with the log. |
+| Service stops after enabling capture | Native crash. The next start skips the capture probe (`t7_probe` = `crashed`). Retry with `/set?key=t7_probe&value=retry`. |
+| `sdb connect` or `tizen install` fails | Developer Mode host IP is not your PC's (for example it is `127.0.0.1` for TizenBrew). |
+
+## Findings about this firmware
+
+- `libvideoenhance.so` (19 KB) has no `*rgb_measure*` functions, so the original pixel-sampling method is impossible on this TV.
+- `secvideo_api_capture_screen`'s info struct is larger than the 36-byte `Info_t`. Passing 36 bytes kills the process with no exception, so the code passes a zeroed 256-byte native buffer (Y size at offset 0, UV size at 4, Y pointer at 16, UV pointer at 20).
+- `Newtonsoft.Json` fails to load here (`manifest definition does not match`); it was replaced by a small parser in `MiniJson.cs`.
+- `dlog` returns nothing, so the service keeps its own log in memory and in a file, served at `/logs`.
+- `on-boot` in the manifest is ignored for this sideloaded app.
+
+## Credits
+
+Original project by [reisxd](https://github.com/reisxd/HyperTizen). Performance work by [lowryn](https://github.com/lowryn/HyperTizen). NV12 capture research by [SryEyes](https://github.com/SryEyes/HyperTizen).
