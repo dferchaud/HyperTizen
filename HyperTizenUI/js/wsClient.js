@@ -186,9 +186,26 @@ function connect() {
     ws.onerror = function () { };
 }
 
+var HELPER_PORT = 8087;
+
+// Asks the module's Node service (js/service.js, port 8087) to launch the native service.
+function launchViaHelper(automatic) {
+    showMessage(automatic ? 'Service injoignable : demande de lancement a TizenBrew...' : 'Demande de lancement a TizenBrew...');
+    launchedAt = new Date().getTime();
+    fetch('http://' + deviceIP + ':' + HELPER_PORT + '/launch')
+        .then(function (res) { return res.json(); })
+        .then(function (info) {
+            var last = info.log && info.log.length ? info.log[info.log.length - 1] : '';
+            showMessage((info.serviceUp ? 'Service actif. ' : 'Lancement demande. ') + 'API Tizen cote TizenBrew : ' + info.tizenApi + '. ' + last);
+        })
+        .catch(function () {
+            showMessage('Script de service TizenBrew injoignable (port ' + HELPER_PORT + '). Autorisez-le dans TizenBrew (Autolaunch service) ou lancez le service depuis le PC.');
+        });
+}
+
 function launchService(automatic) {
     if (typeof tizen === 'undefined' || !tizen.application) {
-        showMessage('API Tizen indisponible dans cette page : lancez le service depuis le PC (tizen run).');
+        launchViaHelper(automatic);
         return;
     }
     showMessage(automatic ? 'Service injoignable : tentative de lancement...' : 'Lancement du service...');

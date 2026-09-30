@@ -104,6 +104,23 @@ Commandes à la télécommande : flèches haut/bas pour naviguer, Entrée pour v
 
 Ce qui n'est pas vérifié : la logique de l'interface a été testée avec un faux navigateur et un faux service, pas sur une vraie TV. On ne sait pas si le lancement du service par cette page fonctionne sur votre firmware, ni si TizenBrew expose `tizen.application` aux modules. Le service fonctionne sans l'interface.
 
+### Lancement du service par TizenBrew
+
+TizenBrew exécute le script `js/service.js` du module dans un bac à sable Node.js 4 et le lui charge depuis le CDN jsDelivr (avec mise en cache). Ce script :
+- lance le service natif avec `tizen.application.launchAppControl` (opération `service`, comme TizenBrew le fait pour son propre service), puis avec `launch` en repli ;
+- vérifie que le service répond avant de réessayer (jusqu'à 2 minutes) ;
+- ouvre un petit serveur d'état sur le port **8087** :
+  - `GET /status` : état, API Tizen disponible ou non, journal des tentatives ;
+  - `GET /launch` : demande un lancement et renvoie l'état.
+
+La page (servie par TizenBrew) s'en sert quand elle n'a pas d'API `tizen`. Pour comprendre un échec depuis le PC :
+```powershell
+curl.exe http://IP_TV:8087/status
+```
+Ce serveur n'a pas d'authentification et écoute sur tout le réseau local ; il ne peut que relancer HyperTizen.
+
+Dans TizenBrew, **Settings > Autolaunch service** permet de démarrer ce script dès que TizenBrew démarre. Non vérifié : que `tizen.application` soit disponible dans ce bac à sable, que TizenBrew soit lui-même lancé au démarrage de la TV, et que jsDelivr serve la dernière version du script (le cache peut durer plusieurs heures).
+
 ### Installer l'interface comme appli TV (sans TizenBrew)
 
 TizenBrew exige une IP de mode développeur (`127.0.0.1`) incompatible avec `tizen run` depuis le PC, et la page n'y a pas accès à `tizen.application`. Installée comme appli TV, la page a ses propres droits et peut lancer le service. Non vérifié sur la TV.
