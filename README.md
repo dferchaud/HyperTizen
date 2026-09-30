@@ -11,8 +11,9 @@ Vérifié sur la TV :
 - Le service est lancé depuis la TV par le module TizenBrew (lancement par sdb), sans PC, et l'interface s'y connecte.
 - La capture plein cadre **fonctionne** : `secvideo_api_capture_screen` (`/usr/lib/libsec-video-capture.so.0`) renvoie 0, et `/frame.bmp` affiche bien l'image de la TV (NV12, 480x270).
 
+- L'envoi des images à HyperHDR (FlatBuffers/TCP, port 19400) fonctionne : le retour vidéo s'affiche dans HyperHDR. Testé avec HyperHDR sur un PC ; le support de Hyperion n'a pas été testé.
+
 Non vérifié :
-- L'envoi des images à HyperHDR / Hyperion (aucun serveur n'était disponible lors des tests).
 - Le démarrage automatique après un redémarrage de la TV (`on-boot` du manifest n'est pas respecté ; il faut que TizenBrew soit lancé et que « Autolaunch service » soit coché).
 - Le comportement avec du contenu protégé (DRM), qui ne peut pas être capturé.
 - Le rendu des couleurs et la latence en conditions réelles.
