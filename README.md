@@ -106,12 +106,14 @@ Ce qui n'est pas vérifié : la logique de l'interface a été testée avec un f
 
 ### Lancement du service par TizenBrew
 
-TizenBrew exécute le script `js/service.js` du module dans un bac à sable Node.js 4 et le lui charge depuis le CDN jsDelivr (avec mise en cache). Ce script :
-- lance le service natif avec `tizen.application.launchAppControl` (opération `service`, comme TizenBrew le fait pour son propre service), puis avec `launch` en repli ;
-- vérifie que le service répond avant de réessayer (jusqu'à 2 minutes) ;
-- ouvre un petit serveur d'état sur le port **8087** :
-  - `GET /status` : état, API Tizen disponible ou non, journal des tentatives ;
-  - `GET /launch` : demande un lancement et renvoie l'état.
+TizenBrew exécute le script `js/service.js` du module dans un bac à sable Node.js (v12.4.0 sur le QE55Q80A) et le lui charge depuis le CDN jsDelivr, avec mise en cache. Ce script lance le service natif, dans cet ordre :
+
+1. **Par sdb**, comme `tizen run` : connexion à `127.0.0.1:26101` (le `sdbd` de la TV, accessible parce que le mode développeur est réglé sur `127.0.0.1` pour TizenBrew) et commande `shell:0 debug io.gh.reisxd.HyperTizen`. C'est le mécanisme que TizenBrew utilise pour ses propres applis ; le protocole est celui de la bibliothèque `adbhost`.
+2. En repli, `tizen.application.launchAppControl` (opération `service`), puis `tizen.application.launch`. Sur le QE55Q80A, ces deux appels échouent avec `Unknown error`.
+
+Il vérifie que le service répond avant chaque essai (jusqu'à 2 minutes) et ouvre un petit serveur d'état sur le port **8087** :
+- `GET /status` : état, API Tizen disponible ou non, journal des tentatives ;
+- `GET /launch` : demande un lancement et renvoie l'état.
 
 La page (servie par TizenBrew) s'en sert quand elle n'a pas d'API `tizen`. Pour comprendre un échec depuis le PC :
 ```powershell
@@ -119,7 +121,9 @@ curl.exe http://IP_TV:8087/status
 ```
 Ce serveur n'a pas d'authentification et écoute sur tout le réseau local ; il ne peut que relancer HyperTizen.
 
-Dans TizenBrew, **Settings > Autolaunch service** permet de démarrer ce script dès que TizenBrew démarre. Non vérifié : que `tizen.application` soit disponible dans ce bac à sable, que TizenBrew soit lui-même lancé au démarrage de la TV, et que jsDelivr serve la dernière version du script (le cache peut durer plusieurs heures).
+Dans TizenBrew, **Settings > Autolaunch service** permet de démarrer ce script dès que TizenBrew démarre.
+
+Vérifié seulement avec un faux `sdbd` construit avec le code de paquets d'`adbhost` : le lancement par sdb n'a pas été essayé sur la TV. Non vérifié non plus : que TizenBrew soit lui-même lancé au démarrage de la TV, et que jsDelivr serve la dernière version du script (le cache peut durer plusieurs heures ; on peut épingler un commit : `dferchaud/HyperTizen@<commit>/HyperTizenUI`).
 
 ### Installer l'interface comme appli TV (sans TizenBrew)
 
