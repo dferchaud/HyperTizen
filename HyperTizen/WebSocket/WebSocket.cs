@@ -50,6 +50,14 @@ namespace HyperTizen.WebSocket
                         var wsContext = await httpContext.AcceptWebSocketAsync(null);
                         _ = HandleWebSocketAsync(wsContext.WebSocket);
                     }
+                    else if (httpContext.Request.Url.AbsolutePath == "/logs")
+                    {
+                        byte[] body = Encoding.UTF8.GetBytes(Diag.Dump());
+                        httpContext.Response.ContentType = "text/plain; charset=utf-8";
+                        httpContext.Response.ContentLength64 = body.Length;
+                        httpContext.Response.OutputStream.Write(body, 0, body.Length);
+                        httpContext.Response.Close();
+                    }
                     else
                     {
                         httpContext.Response.StatusCode = 400;
@@ -62,7 +70,7 @@ namespace HyperTizen.WebSocket
                 }
                 catch (Exception ex)
                 {
-                    Tizen.Log.Debug("HyperTizen", "Control server request failed: " + ex.Message);
+                    Diag.Log("Control server request failed: " + ex.Message);
                 }
             }
         }
@@ -203,12 +211,12 @@ namespace HyperTizen.WebSocket
                     {
                         server = new WSServer(prefix);
                         server.Start();
-                        Tizen.Log.Debug("HyperTizen", "Control server listening on " + prefix);
+                        Diag.Log("Control server listening on " + prefix);
                         await server.RunAsync();
                     }
                     catch (Exception ex)
                     {
-                        Tizen.Log.Debug("HyperTizen", "Control server on " + prefix + " failed: " + ex.GetType().Name + " " + ex.Message);
+                        Diag.Log("Control server on " + prefix + " failed: " + ex.GetType().Name + " " + ex.Message);
                         server?.Stop();
                     }
                 }

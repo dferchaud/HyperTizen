@@ -14,11 +14,11 @@ namespace HyperTizen
         {
             base.OnCreate();
             if (!Preference.Contains("enabled")) Preference.Set("enabled", "false");
-            Tizen.Log.Debug("HyperTizen", $"Service starting: model={SDK.SystemInfo.ModelName} tizen={SDK.SystemInfo.PlatformVersion}");
+            Diag.Log($"Service starting: model={SDK.SystemInfo.ModelName} tizen={SDK.SystemInfo.PlatformVersion}");
             Task.Run(async () =>
             {
                 try { await WebSocketServer.StartServerAsync(); }
-                catch (Exception ex) { Tizen.Log.Debug("HyperTizen", "Control WebSocket server failed: " + ex.Message); }
+                catch (Exception ex) { Diag.Log("Control WebSocket server failed: " + ex.Message); }
             });
             Display.StateChanged += Display_StateChanged;
             client = new HyperionClient();
@@ -38,7 +38,7 @@ namespace HyperTizen
                 _ = Task.Run(async () =>
                 {
                     try { await client.Stop(); }
-                    catch (Exception ex) { Tizen.Log.Debug("HyperTizen", "Display Off → Stop failed: " + ex.Message); }
+                    catch (Exception ex) { Diag.Log("Display Off → Stop failed: " + ex.Message); }
                 });
             }
             else if (e.State == DisplayState.Normal)
@@ -53,7 +53,7 @@ namespace HyperTizen
                 _ = Task.Run(async () =>
                 {
                     try { await client.Start(); }
-                    catch (Exception ex) { Tizen.Log.Debug("HyperTizen", "Display Normal → Start failed: " + ex.Message); }
+                    catch (Exception ex) { Diag.Log("Display Normal → Start failed: " + ex.Message); }
                 });
             }
         }

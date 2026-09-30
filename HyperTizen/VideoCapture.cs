@@ -23,7 +23,7 @@ namespace HyperTizen
             _pImageUV = Marshal.AllocHGlobal(UVSize);
             _yData    = new byte[YSize];
             _uvData   = new byte[UVSize];
-            Tizen.Log.Debug("HyperTizen", $"VideoCapture: buffers allocated ({Width}x{Height} NV12)");
+            Diag.Log($"VideoCapture: buffers allocated ({Width}x{Height} NV12)");
         }
 
         // Returns captured frame data, or null if capture failed (DRM, scaler error, etc.)
@@ -44,13 +44,13 @@ namespace HyperTizen
                 switch (result)
                 {
                     case -4:
-                        Tizen.Log.Debug("HyperTizen", "VideoCapture: DRM content (-4), skipping frame");
+                        Diag.Log("VideoCapture: DRM content (-4), skipping frame");
                         break;
                     case -2:
-                        Tizen.Log.Debug("HyperTizen", "VideoCapture: scaler failure (-2), try cold reboot if persistent");
+                        Diag.Log("VideoCapture: scaler failure (-2), try cold reboot if persistent");
                         break;
                     default:
-                        Tizen.Log.Debug("HyperTizen", $"VideoCapture: capture error {result}");
+                        Diag.Log($"VideoCapture: capture error {result}");
                         break;
                 }
                 return null;
