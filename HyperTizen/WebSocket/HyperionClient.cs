@@ -48,7 +48,15 @@ namespace HyperTizen.WebSocket
             {
                 if (SDK.SystemInfo.TizenVersionMajor < 8)
                 {
-                    Diag.Log("cap_mode: libve (Tizen < 8)");
+                    // Tizen 7 and below: flat C API in libsec-video-capture.so.0.
+                    // libvideoenhance has no rgb_measure entry points on Tizen 6.0 firmware.
+                    if (ProbeT7VideoCapture())
+                    {
+                        Diag.Log("cap_mode: secvideo-t7 (NV12 FlatBuffers TCP)");
+                        Preference.Set("cap_mode", "secvideo");
+                        return true;
+                    }
+                    Diag.Log("cap_mode: libve (Tizen < 8, libsec-video-capture unusable)");
                     Preference.Set("cap_mode", "libve");
                     return false;
                 }
@@ -61,6 +69,22 @@ namespace HyperTizen.WebSocket
             {
                 Diag.Log("cap_mode: libve (fallback) — " + ex.Message);
                 Preference.Set("cap_mode", "libve");
+                return false;
+            }
+        }
+
+        private static bool ProbeT7VideoCapture()
+        {
+            try
+            {
+                VideoCapture.InitCapture();
+                int result = VideoCapture.ProbeCapture();
+                Diag.Log("T7 capture probe: secvideo_api_capture_screen returned " + result);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Diag.Log("T7 capture probe failed: " + ex.GetType().Name + " " + ex.Message);
                 return false;
             }
         }
@@ -193,6 +217,8 @@ namespace HyperTizen.WebSocket
                 var frame = VideoCapture.CaptureFrame();
                 if (frame.HasValue)
                     await Networking.SendFrameAsync(frame.Value.yData, frame.Value.uvData);
+                else
+                    await Task.Delay(200, ct);
             }
 
             Networking.Disconnect();

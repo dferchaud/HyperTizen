@@ -19,11 +19,25 @@ namespace HyperTizen
 
         public static void InitCapture()
         {
+            if (_pImageY != IntPtr.Zero) return;
             _pImageY  = Marshal.AllocHGlobal(YSize);
             _pImageUV = Marshal.AllocHGlobal(UVSize);
             _yData    = new byte[YSize];
             _uvData   = new byte[UVSize];
             Diag.Log($"VideoCapture: buffers allocated ({Width}x{Height} NV12)");
+        }
+
+        // Raw result of one capture call; throws if the native library or entry point is missing.
+        public static int ProbeCapture()
+        {
+            var info = new SDK.SecVideoCapture.Info_t
+            {
+                iGivenBufferSize1 = YSize,
+                iGivenBufferSize2 = UVSize,
+                pImageY           = _pImageY,
+                pImageUV          = _pImageUV
+            };
+            return SDK.SecVideoCapture.CaptureScreen(Width, Height, ref info);
         }
 
         // Returns captured frame data, or null if capture failed (DRM, scaler error, etc.)
