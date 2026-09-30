@@ -6,7 +6,6 @@ namespace hyperhdrnet
 {
 
 using global::System;
-using global::System.Collections.Generic;
 using global::Google.FlatBuffers;
 
 public struct Image : IFlatbufferObject
@@ -21,20 +20,7 @@ public struct Image : IFlatbufferObject
 
   public hyperhdrnet.ImageType DataType { get { int o = __p.__offset(4); return o != 0 ? (hyperhdrnet.ImageType)__p.bb.Get(o + __p.bb_pos) : hyperhdrnet.ImageType.NONE; } }
   public TTable? Data<TTable>() where TTable : struct, IFlatbufferObject { int o = __p.__offset(6); return o != 0 ? (TTable?)__p.__union<TTable>(o + __p.bb_pos) : null; }
-  public hyperhdrnet.RawImage DataAsRawImage() { return Data<hyperhdrnet.RawImage>().Value; }
-  public hyperhdrnet.NV12Image DataAsNV12Image() { return Data<hyperhdrnet.NV12Image>().Value; }
-  public int Duration { get { int o = __p.__offset(8); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : (int)-1; } }
-
-  public static Offset<hyperhdrnet.Image> CreateImage(FlatBufferBuilder builder,
-      hyperhdrnet.ImageType data_type = hyperhdrnet.ImageType.NONE,
-      int dataOffset = 0,
-      int duration = -1) {
-    builder.StartTable(3);
-    Image.AddDuration(builder, duration);
-    Image.AddData(builder, dataOffset);
-    Image.AddDataType(builder, data_type);
-    return Image.EndImage(builder);
-  }
+  public int Duration { get { int o = __p.__offset(8); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : -1; } }
 
   public static void StartImage(FlatBufferBuilder builder) { builder.StartTable(3); }
   public static void AddDataType(FlatBufferBuilder builder, hyperhdrnet.ImageType dataType) { builder.AddByte(0, (byte)dataType, 0); }
@@ -47,15 +33,14 @@ public struct Image : IFlatbufferObject
   }
 }
 
-
 static public class ImageVerify
 {
   static public bool Verify(Google.FlatBuffers.Verifier verifier, uint tablePos)
   {
     return verifier.VerifyTableStart(tablePos)
-      && verifier.VerifyField(tablePos, 4 /*DataType*/, 1 /*hyperhdrnet.ImageType*/, 1, false)
-      && verifier.VerifyUnion(tablePos, 4, 6 /*Data*/, hyperhdrnet.ImageTypeVerify.Verify, true)
-      && verifier.VerifyField(tablePos, 8 /*Duration*/, 4 /*int*/, 4, false)
+      && verifier.VerifyField(tablePos, 4, 1, 1, false)
+      && verifier.VerifyUnion(tablePos, 4, 6, hyperhdrnet.ImageTypeVerify.Verify, true)
+      && verifier.VerifyField(tablePos, 8, 4, 4, false)
       && verifier.VerifyTableEnd(tablePos);
   }
 }

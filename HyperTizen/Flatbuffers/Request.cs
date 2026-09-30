@@ -6,7 +6,6 @@ namespace hyperhdrnet
 {
 
 using global::System;
-using global::System.Collections.Generic;
 using global::Google.FlatBuffers;
 
 public struct Request : IFlatbufferObject
@@ -16,25 +15,11 @@ public struct Request : IFlatbufferObject
   public static void ValidateVersion() { FlatBufferConstants.FLATBUFFERS_25_2_10(); }
   public static Request GetRootAsRequest(ByteBuffer _bb) { return GetRootAsRequest(_bb, new Request()); }
   public static Request GetRootAsRequest(ByteBuffer _bb, Request obj) { return (obj.__assign(_bb.GetInt(_bb.Position) + _bb.Position, _bb)); }
-  public static bool VerifyRequest(ByteBuffer _bb) {Google.FlatBuffers.Verifier verifier = new Google.FlatBuffers.Verifier(_bb); return verifier.VerifyBuffer("", false, RequestVerify.Verify); }
   public void __init(int _i, ByteBuffer _bb) { __p = new Table(_i, _bb); }
   public Request __assign(int _i, ByteBuffer _bb) { __init(_i, _bb); return this; }
 
   public hyperhdrnet.Command CommandType { get { int o = __p.__offset(4); return o != 0 ? (hyperhdrnet.Command)__p.bb.Get(o + __p.bb_pos) : hyperhdrnet.Command.NONE; } }
   public TTable? Command<TTable>() where TTable : struct, IFlatbufferObject { int o = __p.__offset(6); return o != 0 ? (TTable?)__p.__union<TTable>(o + __p.bb_pos) : null; }
-  public hyperhdrnet.Color CommandAsColor() { return Command<hyperhdrnet.Color>().Value; }
-  public hyperhdrnet.Image CommandAsImage() { return Command<hyperhdrnet.Image>().Value; }
-  public hyperhdrnet.Clear CommandAsClear() { return Command<hyperhdrnet.Clear>().Value; }
-  public hyperhdrnet.Register CommandAsRegister() { return Command<hyperhdrnet.Register>().Value; }
-
-  public static Offset<hyperhdrnet.Request> CreateRequest(FlatBufferBuilder builder,
-      hyperhdrnet.Command command_type = hyperhdrnet.Command.NONE,
-      int commandOffset = 0) {
-    builder.StartTable(2);
-    Request.AddCommand(builder, commandOffset);
-    Request.AddCommandType(builder, command_type);
-    return Request.EndRequest(builder);
-  }
 
   public static void StartRequest(FlatBufferBuilder builder) { builder.StartTable(2); }
   public static void AddCommandType(FlatBufferBuilder builder, hyperhdrnet.Command commandType) { builder.AddByte(0, (byte)commandType, 0); }
@@ -45,17 +30,15 @@ public struct Request : IFlatbufferObject
     return new Offset<hyperhdrnet.Request>(o);
   }
   public static void FinishRequestBuffer(FlatBufferBuilder builder, Offset<hyperhdrnet.Request> offset) { builder.Finish(offset.Value); }
-  public static void FinishSizePrefixedRequestBuffer(FlatBufferBuilder builder, Offset<hyperhdrnet.Request> offset) { builder.FinishSizePrefixed(offset.Value); }
 }
-
 
 static public class RequestVerify
 {
   static public bool Verify(Google.FlatBuffers.Verifier verifier, uint tablePos)
   {
     return verifier.VerifyTableStart(tablePos)
-      && verifier.VerifyField(tablePos, 4 /*CommandType*/, 1 /*hyperhdrnet.Command*/, 1, false)
-      && verifier.VerifyUnion(tablePos, 4, 6 /*Command*/, hyperhdrnet.CommandVerify.Verify, true)
+      && verifier.VerifyField(tablePos, 4, 1, 1, false)
+      && verifier.VerifyUnion(tablePos, 4, 6, hyperhdrnet.CommandVerify.Verify, true)
       && verifier.VerifyTableEnd(tablePos);
   }
 }

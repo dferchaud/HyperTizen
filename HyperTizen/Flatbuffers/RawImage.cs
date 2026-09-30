@@ -6,7 +6,6 @@ namespace hyperhdrnet
 {
 
 using global::System;
-using global::System.Collections.Generic;
 using global::Google.FlatBuffers;
 
 public struct RawImage : IFlatbufferObject
@@ -21,34 +20,15 @@ public struct RawImage : IFlatbufferObject
 
   public byte Data(int j) { int o = __p.__offset(4); return o != 0 ? __p.bb.Get(__p.__vector(o) + j * 1) : (byte)0; }
   public int DataLength { get { int o = __p.__offset(4); return o != 0 ? __p.__vector_len(o) : 0; } }
-#if ENABLE_SPAN_T
-  public Span<byte> GetDataBytes() { return __p.__vector_as_span<byte>(4, 1); }
-#else
   public ArraySegment<byte>? GetDataBytes() { return __p.__vector_as_arraysegment(4); }
-#endif
   public byte[] GetDataArray() { return __p.__vector_as_array<byte>(4); }
-  public int Width { get { int o = __p.__offset(6); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : (int)-1; } }
-  public int Height { get { int o = __p.__offset(8); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : (int)-1; } }
-
-  public static Offset<hyperhdrnet.RawImage> CreateRawImage(FlatBufferBuilder builder,
-      VectorOffset dataOffset = default(VectorOffset),
-      int width = -1,
-      int height = -1) {
-    builder.StartTable(3);
-    RawImage.AddHeight(builder, height);
-    RawImage.AddWidth(builder, width);
-    RawImage.AddData(builder, dataOffset);
-    return RawImage.EndRawImage(builder);
-  }
+  public int Width  { get { int o = __p.__offset(6); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : -1; } }
+  public int Height { get { int o = __p.__offset(8); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : -1; } }
 
   public static void StartRawImage(FlatBufferBuilder builder) { builder.StartTable(3); }
   public static void AddData(FlatBufferBuilder builder, VectorOffset dataOffset) { builder.AddOffset(0, dataOffset.Value, 0); }
-  public static VectorOffset CreateDataVector(FlatBufferBuilder builder, byte[] data) { builder.StartVector(1, data.Length, 1); for (int i = data.Length - 1; i >= 0; i--) builder.AddByte(data[i]); return builder.EndVector(); }
   public static VectorOffset CreateDataVectorBlock(FlatBufferBuilder builder, byte[] data) { builder.StartVector(1, data.Length, 1); builder.Add(data); return builder.EndVector(); }
-  public static VectorOffset CreateDataVectorBlock(FlatBufferBuilder builder, ArraySegment<byte> data) { builder.StartVector(1, data.Count, 1); builder.Add(data); return builder.EndVector(); }
-  public static VectorOffset CreateDataVectorBlock(FlatBufferBuilder builder, IntPtr dataPtr, int sizeInBytes) { builder.StartVector(1, sizeInBytes, 1); builder.Add<byte>(dataPtr, sizeInBytes); return builder.EndVector(); }
-  public static void StartDataVector(FlatBufferBuilder builder, int numElems) { builder.StartVector(1, numElems, 1); }
-  public static void AddWidth(FlatBufferBuilder builder, int width) { builder.AddInt(1, width, -1); }
+  public static void AddWidth(FlatBufferBuilder builder, int width)   { builder.AddInt(1, width, -1); }
   public static void AddHeight(FlatBufferBuilder builder, int height) { builder.AddInt(2, height, -1); }
   public static Offset<hyperhdrnet.RawImage> EndRawImage(FlatBufferBuilder builder) {
     int o = builder.EndTable();
@@ -56,15 +36,14 @@ public struct RawImage : IFlatbufferObject
   }
 }
 
-
 static public class RawImageVerify
 {
   static public bool Verify(Google.FlatBuffers.Verifier verifier, uint tablePos)
   {
     return verifier.VerifyTableStart(tablePos)
-      && verifier.VerifyVectorOfData(tablePos, 4 /*Data*/, 1 /*byte*/, false)
-      && verifier.VerifyField(tablePos, 6 /*Width*/, 4 /*int*/, 4, false)
-      && verifier.VerifyField(tablePos, 8 /*Height*/, 4 /*int*/, 4, false)
+      && verifier.VerifyVectorOfData(tablePos, 4, 1, false)
+      && verifier.VerifyField(tablePos, 6, 4, 4, false)
+      && verifier.VerifyField(tablePos, 8, 4, 4, false)
       && verifier.VerifyTableEnd(tablePos);
   }
 }

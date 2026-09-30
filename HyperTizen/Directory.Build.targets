@@ -16,6 +16,6 @@ WARNING:  DO NOT MODIFY this file. Incorrect changes to this file will make it
         </PropertyGroup>
         <Message Text="Workspace: '$(WorkspaceFolder)'"  Importance="high" />
 
-		<!-- <Exec Command="C:\tizensdk\tools\tizen-core\tz.exe pack  -S $(ProjectDir) $(WorkspaceFolder)"> </Exec> -->
+		<!-- <Exec Command="C:\tizen-studio\tools\tizen-core\tz.exe pack  -S $(ProjectDir) $(WorkspaceFolder)"> </Exec> -->
     </Target>
 </Project>

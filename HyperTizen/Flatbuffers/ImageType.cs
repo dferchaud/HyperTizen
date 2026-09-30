@@ -12,8 +12,6 @@ public enum ImageType : byte
   NV12Image = 2,
 };
 
-
-
 static public class ImageTypeVerify
 {
   static public bool Verify(Google.FlatBuffers.Verifier verifier, byte typeId, uint tablePos)
@@ -21,18 +19,12 @@ static public class ImageTypeVerify
     bool result = true;
     switch((ImageType)typeId)
     {
-      case ImageType.RawImage:
-        result = hyperhdrnet.RawImageVerify.Verify(verifier, tablePos);
-        break;
-      case ImageType.NV12Image:
-        result = hyperhdrnet.NV12ImageVerify.Verify(verifier, tablePos);
-        break;
-      default: result = true;
-        break;
+      case ImageType.RawImage:   result = hyperhdrnet.RawImageVerify.Verify(verifier, tablePos); break;
+      case ImageType.NV12Image:  result = hyperhdrnet.NV12ImageVerify.Verify(verifier, tablePos); break;
+      default: result = true; break;
     }
     return result;
   }
 }
-
 
 }

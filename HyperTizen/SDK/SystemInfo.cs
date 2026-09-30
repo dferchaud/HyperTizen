@@ -1,65 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
+using Tizen.System;
 
 namespace HyperTizen.SDK
 {
     public static class SystemInfo
     {
+        public static string PlatformVersion
+        {
+            get
+            {
+                try
+                {
+                    return Information.TryGetValue("http://tizen.org/feature/platform.version", out string version)
+                        ? version
+                        : null;
+                }
+                catch (Exception)
+                {
+                    return null;
+                }
+            }
+        }
+
+        // 0 when the version cannot be read; callers treat that as "old firmware".
         public static int TizenVersionMajor
         {
             get
             {
-                string version;
-                Tizen.System.Information.TryGetValue("http://tizen.org/feature/platform.version", out version);
-                return int.Parse(version.Split('.')[0]);
-            }
-        }
-        public static int TizenVersionMinor
-        {
-            get
-            {
-                string version;
-                Tizen.System.Information.TryGetValue("http://tizen.org/feature/platform.version", out version);
-                return int.Parse(version.Split('.')[1]);
-            }
-        }
-        public static bool ImageCapture
-        {
-            get
-            {
-                bool isSupported;
-                Tizen.System.Information.TryGetValue("http://tizen.org/feature/media.image_capture", out isSupported);
-                return isSupported;
-            }
-        }
-        public static bool VideoRecording
-        {
-            get
-            {
-                bool isSupported;
-                Tizen.System.Information.TryGetValue("http://tizen.org/feature/media.video_recording", out isSupported);
-                return isSupported;
-            }
-        }
-        public static int ScreenWidth
-        {
-            get
-            {
-                int width;
-                Tizen.System.Information.TryGetValue("http://tizen.org/feature/screen.width", out width);
-                return width;
-            }
-        }
-        public static int ScreenHeight
-        {
-            get
-            {
-                int height;
-                Tizen.System.Information.TryGetValue("http://tizen.org/feature/screen.height", out height);
-                return height;
+                string version = PlatformVersion;
+                if (string.IsNullOrEmpty(version)) return 0;
+                return int.TryParse(version.Split('.')[0], out int major) ? major : 0;
             }
         }
 
@@ -67,9 +37,14 @@ namespace HyperTizen.SDK
         {
             get
             {
-                string name;
-                Tizen.System.Information.TryGetValue("http://tizen.org/system/model_name", out name);
-                return name;
+                try
+                {
+                    return Information.TryGetValue("http://tizen.org/system/model_name", out string name) ? name : null;
+                }
+                catch (Exception)
+                {
+                    return null;
+                }
             }
         }
     }

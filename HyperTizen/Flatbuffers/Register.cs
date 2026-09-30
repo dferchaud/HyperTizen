@@ -6,7 +6,6 @@ namespace hyperhdrnet
 {
 
 using global::System;
-using global::System.Collections.Generic;
 using global::Google.FlatBuffers;
 
 public struct Register : IFlatbufferObject
@@ -19,23 +18,8 @@ public struct Register : IFlatbufferObject
   public void __init(int _i, ByteBuffer _bb) { __p = new Table(_i, _bb); }
   public Register __assign(int _i, ByteBuffer _bb) { __init(_i, _bb); return this; }
 
-  public string Origin { get { int o = __p.__offset(4); return o != 0 ? __p.__string(o + __p.bb_pos) : null; } }
-#if ENABLE_SPAN_T
-  public Span<byte> GetOriginBytes() { return __p.__vector_as_span<byte>(4, 1); }
-#else
-  public ArraySegment<byte>? GetOriginBytes() { return __p.__vector_as_arraysegment(4); }
-#endif
-  public byte[] GetOriginArray() { return __p.__vector_as_array<byte>(4); }
-  public int Priority { get { int o = __p.__offset(6); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : (int)0; } }
-
-  public static Offset<hyperhdrnet.Register> CreateRegister(FlatBufferBuilder builder,
-      StringOffset originOffset = default(StringOffset),
-      int priority = 0) {
-    builder.StartTable(2);
-    Register.AddPriority(builder, priority);
-    Register.AddOrigin(builder, originOffset);
-    return Register.EndRegister(builder);
-  }
+  public string Origin   { get { int o = __p.__offset(4); return o != 0 ? __p.__string(o + __p.bb_pos) : null; } }
+  public int    Priority { get { int o = __p.__offset(6); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : 0; } }
 
   public static void StartRegister(FlatBufferBuilder builder) { builder.StartTable(2); }
   public static void AddOrigin(FlatBufferBuilder builder, StringOffset originOffset) { builder.AddOffset(0, originOffset.Value, 0); }
@@ -47,14 +31,13 @@ public struct Register : IFlatbufferObject
   }
 }
 
-
 static public class RegisterVerify
 {
   static public bool Verify(Google.FlatBuffers.Verifier verifier, uint tablePos)
   {
     return verifier.VerifyTableStart(tablePos)
-      && verifier.VerifyString(tablePos, 4 /*Origin*/, true)
-      && verifier.VerifyField(tablePos, 6 /*Priority*/, 4 /*int*/, 4, false)
+      && verifier.VerifyString(tablePos, 4, true)
+      && verifier.VerifyField(tablePos, 6, 4, 4, false)
       && verifier.VerifyTableEnd(tablePos);
   }
 }

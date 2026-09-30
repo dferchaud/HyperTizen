@@ -6,9 +6,9 @@ namespace hyperhdrnet
 {
 
 using global::System;
-using global::System.Collections.Generic;
 using global::Google.FlatBuffers;
 
+// Note: this is the HyperHDR Color command, not HyperTizen.Color pixel struct
 public struct Color : IFlatbufferObject
 {
   private Table __p;
@@ -19,20 +19,11 @@ public struct Color : IFlatbufferObject
   public void __init(int _i, ByteBuffer _bb) { __p = new Table(_i, _bb); }
   public Color __assign(int _i, ByteBuffer _bb) { __init(_i, _bb); return this; }
 
-  public int Data { get { int o = __p.__offset(4); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : (int)-1; } }
-  public int Duration { get { int o = __p.__offset(6); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : (int)-1; } }
-
-  public static Offset<hyperhdrnet.Color> CreateColor(FlatBufferBuilder builder,
-      int data = -1,
-      int duration = -1) {
-    builder.StartTable(2);
-    Color.AddDuration(builder, duration);
-    Color.AddData(builder, data);
-    return Color.EndColor(builder);
-  }
+  public int Data     { get { int o = __p.__offset(4); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : -1; } }
+  public int Duration { get { int o = __p.__offset(6); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : -1; } }
 
   public static void StartColor(FlatBufferBuilder builder) { builder.StartTable(2); }
-  public static void AddData(FlatBufferBuilder builder, int data) { builder.AddInt(0, data, -1); }
+  public static void AddData(FlatBufferBuilder builder, int data)         { builder.AddInt(0, data, -1); }
   public static void AddDuration(FlatBufferBuilder builder, int duration) { builder.AddInt(1, duration, -1); }
   public static Offset<hyperhdrnet.Color> EndColor(FlatBufferBuilder builder) {
     int o = builder.EndTable();
@@ -40,14 +31,13 @@ public struct Color : IFlatbufferObject
   }
 }
 
-
 static public class ColorVerify
 {
   static public bool Verify(Google.FlatBuffers.Verifier verifier, uint tablePos)
   {
     return verifier.VerifyTableStart(tablePos)
-      && verifier.VerifyField(tablePos, 4 /*Data*/, 4 /*int*/, 4, false)
-      && verifier.VerifyField(tablePos, 6 /*Duration*/, 4 /*int*/, 4, false)
+      && verifier.VerifyField(tablePos, 4, 4, 4, false)
+      && verifier.VerifyField(tablePos, 6, 4, 4, false)
       && verifier.VerifyTableEnd(tablePos);
   }
 }

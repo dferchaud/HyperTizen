@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace HyperTizen.WebSocket.DataTypes
 {
@@ -8,15 +8,7 @@ namespace HyperTizen.WebSocket.DataTypes
         ReadConfig,
         ReadConfigResult,
         ScanSSDP,
-        SSDPScanResult,
-        GetLogs,
-        LogsResult,
-        StatusUpdate,
-        PauseCapture,
-        ResumeCapture,
-        GetStatus,
-        StatusResult,
-        RestartService
+        SSDPScanResult
     }
 
     public class BasicEvent
@@ -71,56 +63,6 @@ namespace HyperTizen.WebSocket.DataTypes
         }
     }
 
-    public class LogsResultEvent : BasicEvent
-    {
-        public LogsResultEvent(List<string> logs, string logPath)
-        {
-            this.logs = logs;
-            this.logPath = logPath;
-            this.Event = Event.LogsResult;
-        }
-        public List<string> logs { get; set; }
-        public string logPath { get; set; }
-    }
-
-    public class StatusUpdateEvent : BasicEvent
-    {
-        public StatusUpdateEvent(string status, string message)
-        {
-            this.status = status;
-            this.message = message;
-            this.Event = Event.StatusUpdate;
-        }
-        public string status { get; set; }
-        public string message { get; set; }
-    }
-
-    public class StatusResultEvent : BasicEvent
-    {
-        public StatusResultEvent(string state, long framesCaptured, double averageFPS,
-            int errorCount, bool isConnected, string lastError, string uptime, string activeServerUrl = null)
-        {
-            this.Event = Event.StatusResult;
-            this.state = state;
-            this.framesCaptured = framesCaptured;
-            this.averageFPS = averageFPS;
-            this.errorCount = errorCount;
-            this.isConnected = isConnected;
-            this.lastError = lastError;
-            this.uptime = uptime;
-            this.activeServerUrl = activeServerUrl;
-        }
-
-        public string state { get; set; }
-        public long framesCaptured { get; set; }
-        public double averageFPS { get; set; }
-        public int errorCount { get; set; }
-        public bool isConnected { get; set; }
-        public string lastError { get; set; }
-        public string uptime { get; set; }
-        public string activeServerUrl { get; set; }
-    }
-
     public class ImageCommand
     {
         public ImageCommand(string image)
@@ -130,9 +72,12 @@ namespace HyperTizen.WebSocket.DataTypes
 
         public string command { get; set; } = "image";
         public string imagedata { get; set; }
+        public int imagewidth { get; set; } = 64;
+        public int imageheight { get; set; } = 48;
         public string name { get; set; } = "HyperTizen Data";
         public string format { get; set; } = "auto";
         public byte priority { get; set; } = 99;
+        public int duration { get; set; } = -1;
         public string origin { get; set; } = "HyperTizen";
     }
 }

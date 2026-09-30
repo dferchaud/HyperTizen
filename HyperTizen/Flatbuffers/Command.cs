@@ -14,8 +14,6 @@ public enum Command : byte
   Register = 4,
 };
 
-
-
 static public class CommandVerify
 {
   static public bool Verify(Google.FlatBuffers.Verifier verifier, byte typeId, uint tablePos)
@@ -23,24 +21,14 @@ static public class CommandVerify
     bool result = true;
     switch((Command)typeId)
     {
-      case Command.Color:
-        result = hyperhdrnet.ColorVerify.Verify(verifier, tablePos);
-        break;
-      case Command.Image:
-        result = hyperhdrnet.ImageVerify.Verify(verifier, tablePos);
-        break;
-      case Command.Clear:
-        result = hyperhdrnet.ClearVerify.Verify(verifier, tablePos);
-        break;
-      case Command.Register:
-        result = hyperhdrnet.RegisterVerify.Verify(verifier, tablePos);
-        break;
-      default: result = true;
-        break;
+      case Command.Color:    result = hyperhdrnet.ColorVerify.Verify(verifier, tablePos); break;
+      case Command.Image:    result = hyperhdrnet.ImageVerify.Verify(verifier, tablePos); break;
+      case Command.Clear:    result = hyperhdrnet.ClearVerify.Verify(verifier, tablePos); break;
+      case Command.Register: result = hyperhdrnet.RegisterVerify.Verify(verifier, tablePos); break;
+      default: result = true; break;
     }
     return result;
   }
 }
-
 
 }

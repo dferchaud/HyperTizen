@@ -4,7 +4,7 @@ HyperTizen is a Hyperion / HyperHDR capturer for Tizen TVs.
 
 # Installation
 
-To install HyperTizen, you need to have a Samsung TV (Tizen).
+To install HyperTizen, you need to have a Samsung TV (Tizen) that has at least Tizen 6.5 (2022+).
 
 You'll need Tizen Studio to install the app on your TV. You can download it from the [official website](https://developer.samsung.com/smarttv/develop/getting-started/setting-up-sdk/installing-tv-sdk.html).
 

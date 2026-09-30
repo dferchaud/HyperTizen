@@ -6,7 +6,6 @@ namespace hyperhdrnet
 {
 
 using global::System;
-using global::System.Collections.Generic;
 using global::Google.FlatBuffers;
 
 public struct Clear : IFlatbufferObject
@@ -19,14 +18,7 @@ public struct Clear : IFlatbufferObject
   public void __init(int _i, ByteBuffer _bb) { __p = new Table(_i, _bb); }
   public Clear __assign(int _i, ByteBuffer _bb) { __init(_i, _bb); return this; }
 
-  public int Priority { get { int o = __p.__offset(4); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : (int)0; } }
-
-  public static Offset<hyperhdrnet.Clear> CreateClear(FlatBufferBuilder builder,
-      int priority = 0) {
-    builder.StartTable(1);
-    Clear.AddPriority(builder, priority);
-    return Clear.EndClear(builder);
-  }
+  public int Priority { get { int o = __p.__offset(4); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : 0; } }
 
   public static void StartClear(FlatBufferBuilder builder) { builder.StartTable(1); }
   public static void AddPriority(FlatBufferBuilder builder, int priority) { builder.AddInt(0, priority, 0); }
@@ -36,13 +28,12 @@ public struct Clear : IFlatbufferObject
   }
 }
 
-
 static public class ClearVerify
 {
   static public bool Verify(Google.FlatBuffers.Verifier verifier, uint tablePos)
   {
     return verifier.VerifyTableStart(tablePos)
-      && verifier.VerifyField(tablePos, 4 /*Priority*/, 4 /*int*/, 4, false)
+      && verifier.VerifyField(tablePos, 4, 4, 4, false)
       && verifier.VerifyTableEnd(tablePos);
   }
 }

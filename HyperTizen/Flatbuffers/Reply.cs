@@ -6,7 +6,6 @@ namespace hyperhdrnet
 {
 
 using global::System;
-using global::System.Collections.Generic;
 using global::Google.FlatBuffers;
 
 public struct Reply : IFlatbufferObject
@@ -16,30 +15,12 @@ public struct Reply : IFlatbufferObject
   public static void ValidateVersion() { FlatBufferConstants.FLATBUFFERS_25_2_10(); }
   public static Reply GetRootAsReply(ByteBuffer _bb) { return GetRootAsReply(_bb, new Reply()); }
   public static Reply GetRootAsReply(ByteBuffer _bb, Reply obj) { return (obj.__assign(_bb.GetInt(_bb.Position) + _bb.Position, _bb)); }
-  public static bool VerifyReply(ByteBuffer _bb) {Google.FlatBuffers.Verifier verifier = new Google.FlatBuffers.Verifier(_bb); return verifier.VerifyBuffer("", false, ReplyVerify.Verify); }
   public void __init(int _i, ByteBuffer _bb) { __p = new Table(_i, _bb); }
   public Reply __assign(int _i, ByteBuffer _bb) { __init(_i, _bb); return this; }
 
-  public string Error { get { int o = __p.__offset(4); return o != 0 ? __p.__string(o + __p.bb_pos) : null; } }
-#if ENABLE_SPAN_T
-  public Span<byte> GetErrorBytes() { return __p.__vector_as_span<byte>(4, 1); }
-#else
-  public ArraySegment<byte>? GetErrorBytes() { return __p.__vector_as_arraysegment(4); }
-#endif
-  public byte[] GetErrorArray() { return __p.__vector_as_array<byte>(4); }
-  public int Video { get { int o = __p.__offset(6); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : (int)-1; } }
-  public int Registered { get { int o = __p.__offset(8); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : (int)-1; } }
-
-  public static Offset<hyperhdrnet.Reply> CreateReply(FlatBufferBuilder builder,
-      StringOffset errorOffset = default(StringOffset),
-      int video = -1,
-      int registered = -1) {
-    builder.StartTable(3);
-    Reply.AddRegistered(builder, registered);
-    Reply.AddVideo(builder, video);
-    Reply.AddError(builder, errorOffset);
-    return Reply.EndReply(builder);
-  }
+  public string Error      { get { int o = __p.__offset(4); return o != 0 ? __p.__string(o + __p.bb_pos) : null; } }
+  public int    Video      { get { int o = __p.__offset(6); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : -1; } }
+  public int    Registered { get { int o = __p.__offset(8); return o != 0 ? __p.bb.GetInt(o + __p.bb_pos) : -1; } }
 
   public static void StartReply(FlatBufferBuilder builder) { builder.StartTable(3); }
   public static void AddError(FlatBufferBuilder builder, StringOffset errorOffset) { builder.AddOffset(0, errorOffset.Value, 0); }
@@ -49,19 +30,16 @@ public struct Reply : IFlatbufferObject
     int o = builder.EndTable();
     return new Offset<hyperhdrnet.Reply>(o);
   }
-  public static void FinishReplyBuffer(FlatBufferBuilder builder, Offset<hyperhdrnet.Reply> offset) { builder.Finish(offset.Value); }
-  public static void FinishSizePrefixedReplyBuffer(FlatBufferBuilder builder, Offset<hyperhdrnet.Reply> offset) { builder.FinishSizePrefixed(offset.Value); }
 }
-
 
 static public class ReplyVerify
 {
   static public bool Verify(Google.FlatBuffers.Verifier verifier, uint tablePos)
   {
     return verifier.VerifyTableStart(tablePos)
-      && verifier.VerifyString(tablePos, 4 /*Error*/, false)
-      && verifier.VerifyField(tablePos, 6 /*Video*/, 4 /*int*/, 4, false)
-      && verifier.VerifyField(tablePos, 8 /*Registered*/, 4 /*int*/, 4, false)
+      && verifier.VerifyString(tablePos, 4, false)
+      && verifier.VerifyField(tablePos, 6, 4, 4, false)
+      && verifier.VerifyField(tablePos, 8, 4, 4, false)
       && verifier.VerifyTableEnd(tablePos);
   }
 }
