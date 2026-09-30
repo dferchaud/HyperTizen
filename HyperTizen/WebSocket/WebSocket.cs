@@ -50,6 +50,28 @@ namespace HyperTizen.WebSocket
                         var wsContext = await httpContext.AcceptWebSocketAsync(null);
                         _ = HandleWebSocketAsync(wsContext.WebSocket);
                     }
+                    else if (httpContext.Request.Url.AbsolutePath == "/set")
+                    {
+                        string key = httpContext.Request.QueryString["key"];
+                        string value = httpContext.Request.QueryString["value"];
+                        string reply;
+                        if (string.IsNullOrEmpty(key) || value == null)
+                        {
+                            httpContext.Response.StatusCode = 400;
+                            reply = "usage: /set?key=enabled&value=true";
+                        }
+                        else
+                        {
+                            Diag.Log($"HTTP /set key={key} value={value}");
+                            SetConfiguration(new SetConfigEvent { Event = Event.SetConfig, key = key, value = value });
+                            reply = "ok";
+                        }
+                        byte[] okBody = Encoding.UTF8.GetBytes(reply);
+                        httpContext.Response.ContentType = "text/plain; charset=utf-8";
+                        httpContext.Response.ContentLength64 = okBody.Length;
+                        httpContext.Response.OutputStream.Write(okBody, 0, okBody.Length);
+                        httpContext.Response.Close();
+                    }
                     else if (httpContext.Request.Url.AbsolutePath == "/logs")
                     {
                         byte[] body = Encoding.UTF8.GetBytes(Diag.Dump());
@@ -77,17 +99,27 @@ namespace HyperTizen.WebSocket
 
         private async Task HandleWebSocketAsync(System.Net.WebSockets.WebSocket webSocket)
         {
-            var buffer = new byte[1024 * 4];
-            var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-            while (result.MessageType != WebSocketMessageType.Close)
+            Diag.Log("Control WS: client connected");
+            try
             {
-                var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                await OnMessageAsync(webSocket, message);
-                result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            }
+                var buffer = new byte[1024 * 4];
+                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
-            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+                while (result.MessageType != WebSocketMessageType.Close)
+                {
+                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    Diag.Log("Control WS: received " + message);
+                    await OnMessageAsync(webSocket, message);
+                    result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                }
+
+                Diag.Log("Control WS: client closed");
+                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Diag.Log("Control WS: handler failed: " + ex.GetType().Name + " " + ex.Message);
+            }
         }
 
         protected async Task OnMessageAsync(System.Net.WebSockets.WebSocket webSocket, string message)
