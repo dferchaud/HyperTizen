@@ -23,6 +23,8 @@ var launchTried = false;
 var launchedAt = 0;
 var LAUNCH_GRACE_MS = 15000;
 var fbsInputTouched = false;
+var lastCloseCode = '-';
+var connectAttempts = 0;
 
 var state = {
     service: false,
@@ -36,6 +38,14 @@ var state = {
 
 function byId(id) {
     return document.getElementById(id);
+}
+
+function showTarget() {
+    var el = byId('target');
+    if (!el) return;
+    var api = (typeof tizen !== 'undefined' && tizen.application) ? 'oui' : 'non';
+    el.textContent = 'Cible : ws://' + deviceIP + ':' + SERVICE_PORT + ' | tentative ' + connectAttempts +
+        ' | dernier code ' + lastCloseCode + ' | API Tizen : ' + api;
 }
 
 function showMessage(text) {
@@ -132,7 +142,9 @@ function applyResult(msg) {
     render();
 }
 
-function onClose() {
+function onClose(ev) {
+    lastCloseCode = ev && ev.code !== undefined ? ev.code : '-';
+    showTarget();
     var wasUp = state.service;
     state.service = false;
     clearInterval(pollTimer);
@@ -157,9 +169,13 @@ function scheduleReconnect() {
 
 function connect() {
     var ws;
+    connectAttempts++;
+    showTarget();
     try {
         ws = new WebSocket('ws://' + deviceIP + ':' + SERVICE_PORT);
     } catch (e) {
+        lastCloseCode = 'exception ' + e.message;
+        showTarget();
         scheduleReconnect();
         return;
     }

@@ -80,6 +80,12 @@ input:focus {
     box-shadow: 0 0 0 4px rgba(77, 163, 255, 0.35);
 }
 
+.target {
+    font-size: 22px;
+    color: #9aa7b5;
+    margin-bottom: 8px;
+}
+
 .message {
     font-size: 26px;
     min-height: 34px;
