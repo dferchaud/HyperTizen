@@ -5,7 +5,6 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using HyperTizen.WebSocket.DataTypes;
 using Rssdp;
 using Tizen.Applications;
@@ -124,21 +123,22 @@ namespace HyperTizen.WebSocket
 
         protected async Task OnMessageAsync(System.Net.WebSockets.WebSocket webSocket, string message)
         {
-            BasicEvent data = JsonConvert.DeserializeObject<BasicEvent>(message);
+            var fields = MiniJson.ParseObject(message);
+            Event eventType = MiniJson.ParseEvent(fields);
 
-            switch (data.Event)
+            switch (eventType)
             {
                 case Event.ScanSSDP:
                     {
                         var devices = await ScanSSDPAsync();
-                        string resultEvent = JsonConvert.SerializeObject(new SSDPScanResultEvent(devices));
+                        string resultEvent = MiniJson.SsdpScanResult(devices);
                         await SendAsync(webSocket, resultEvent);
                         break;
                     }
 
                 case Event.ReadConfig:
                     {
-                        ReadConfigEvent readConfigEvent = JsonConvert.DeserializeObject<ReadConfigEvent>(message);
+                        ReadConfigEvent readConfigEvent = new ReadConfigEvent { Event = Event.ReadConfig, key = MiniJson.Field(fields, "key") };
                         string result = await ReadConfigAsync(readConfigEvent);
                         await SendAsync(webSocket, result);
                         break;
@@ -146,7 +146,7 @@ namespace HyperTizen.WebSocket
 
                 case Event.SetConfig:
                     {
-                        SetConfigEvent setConfigEvent = JsonConvert.DeserializeObject<SetConfigEvent>(message);
+                        SetConfigEvent setConfigEvent = new SetConfigEvent { Event = Event.SetConfig, key = MiniJson.Field(fields, "key"), value = MiniJson.Field(fields, "value") };
                         SetConfiguration(setConfigEvent);
                         break;
                     }
@@ -176,12 +176,12 @@ namespace HyperTizen.WebSocket
             string result;
             if (!Preference.Contains(readConfigEvent.key))
             {
-                result = JsonConvert.SerializeObject(new ReadConfigResultEvent(true, readConfigEvent.key, "Key doesn't exist."));
+                result = MiniJson.ReadConfigResult(true, readConfigEvent.key, "Key doesn't exist.");
             }
             else
             {
                 string value = Preference.Get<string>(readConfigEvent.key);
-                result = JsonConvert.SerializeObject(new ReadConfigResultEvent(false, readConfigEvent.key, value));
+                result = MiniJson.ReadConfigResult(false, readConfigEvent.key, value);
             }
             return result;
         }

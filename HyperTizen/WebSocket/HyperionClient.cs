@@ -1,4 +1,3 @@
-using Newtonsoft.Json;
 using System;
 using System.Net.WebSockets;
 using System.Text;
@@ -266,7 +265,7 @@ namespace HyperTizen.WebSocket
                 try
                 {
                     ImageCommand imgCmd  = new ImageCommand(image);
-                    string message       = JsonConvert.SerializeObject(imgCmd);
+                    string message       = MiniJson.SerializeImageCommand(imgCmd);
                     byte[] buffer        = Encoding.UTF8.GetBytes(message);
 
                     using (var sendCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
