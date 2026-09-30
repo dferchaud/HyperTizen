@@ -46,6 +46,12 @@ namespace HyperTizen
             try { File.AppendAllText(_path, line + "\n"); } catch { }
         }
 
+        public static string Tail(int count)
+        {
+            string[] all = _lines.ToArray();
+            return string.Join("\n", all.Skip(Math.Max(0, all.Length - count)));
+        }
+
         public static string Dump()
         {
             string current = string.Join("\n", _lines.ToArray());

@@ -198,7 +198,12 @@ namespace HyperTizen.WebSocket
         private async Task<string> ReadConfigAsync(ReadConfigEvent readConfigEvent)
         {
             string result;
-            if (!Preference.Contains(readConfigEvent.key))
+            string live = ReadLiveValue(readConfigEvent.key);
+            if (live != null)
+            {
+                result = MiniJson.ReadConfigResult(false, readConfigEvent.key, live);
+            }
+            else if (!Preference.Contains(readConfigEvent.key))
             {
                 result = MiniJson.ReadConfigResult(true, readConfigEvent.key, "Key doesn't exist.");
             }
@@ -216,10 +221,32 @@ namespace HyperTizen.WebSocket
             await webSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
+        // Runtime state that is not stored in Preference; null when the key is not a live one.
+        private static string ReadLiveValue(string key)
+        {
+            switch (key)
+            {
+                case "connected":
+                    return Networking.IsConnected ? "true" : "false";
+                case "capturing":
+                    return App.client != null && App.client.IsRunning ? "true" : "false";
+                case "logs":
+                    return Diag.Tail(25);
+                default:
+                    return null;
+            }
+        }
+
         void SetConfiguration(SetConfigEvent setConfigEvent)
         {
             switch (setConfigEvent.key)
             {
+                case "fbsServer":
+                    {
+                        Preference.Set(setConfigEvent.key, setConfigEvent.value);
+                        try { Networking.Disconnect(); } catch (Exception ex) { Diag.Log("fbsServer change: disconnect failed: " + ex.Message); }
+                        return;
+                    }
                 case "rpcServer":
                     {
                         App.Configuration.RPCServer = setConfigEvent.value;

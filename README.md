@@ -93,7 +93,18 @@ Si la sonde native tue le service, le démarrage suivant la saute (`t7_probe` pa
 
 ## Interface TizenBrew (HyperTizenUI)
 
-Le dossier `HyperTizenUI` parle au service par WebSocket sur le port 8086. Le service fonctionne sans elle. TizenBrew installe un module depuis la branche par défaut de son dépôt : tant que cette branche n'y est pas fusionnée, le module installé peut être une autre version.
+Le dossier `HyperTizenUI` est une appli web affichée sur la TV (module TizenBrew). Elle se connecte au service par WebSocket (port 8086) et affiche :
+- l'état du service, de la capture, le mode de capture et la connexion à HyperHDR ;
+- les derniers messages du journal du service.
+
+Commandes à la télécommande : flèches haut/bas pour naviguer, Entrée pour valider.
+- **Démarrer le service** : demande à la TV de lancer `io.gh.reisxd.HyperTizen` (`tizen.application.launch`). Si le service est injoignable, l'interface essaie aussi de le lancer une fois d'elle-même.
+- **Activer / Désactiver la capture**.
+- **Adresse de HyperHDR** (`IP:port`, port 19400 par défaut) : à renseigner avec l'adresse réseau de la machine qui fait tourner HyperHDR (pas `localhost`).
+
+Ce qui n'est pas vérifié : la logique de l'interface a été testée avec un faux navigateur et un faux service, pas sur une vraie TV. On ne sait pas si le lancement du service par cette page fonctionne sur votre firmware, ni si TizenBrew expose `tizen.application` aux modules. Le service fonctionne sans l'interface.
+
+TizenBrew installe un module depuis la branche par défaut de son dépôt : tant que cette branche n'y est pas fusionnée, le module installé peut être une autre version.
 
 ## Crédits
 

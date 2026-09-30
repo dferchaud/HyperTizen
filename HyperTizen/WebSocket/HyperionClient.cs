@@ -71,6 +71,11 @@ namespace HyperTizen.WebSocket
             }
         }
 
+        public bool IsRunning
+        {
+            get { return _loopTask != null && !_loopTask.IsCompleted; }
+        }
+
         private bool ProbeT7VideoCapture()
         {
             string state = Preference.Contains("t7_probe") ? Preference.Get<string>("t7_probe") : "";
@@ -123,6 +128,7 @@ namespace HyperTizen.WebSocket
                             Diag.Log(_useSecVideoCapture
                                 ? "cap_mode: secvideo-t7 (NV12 FlatBuffers TCP)"
                                 : "cap_mode: libve (T7 probe unusable)");
+                            Preference.Set("cap_mode", _useSecVideoCapture ? "secvideo" : "libve");
                         }
 
                         if (_useSecVideoCapture)
