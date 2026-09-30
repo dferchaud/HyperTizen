@@ -10,7 +10,8 @@ namespace HyperTizen.WebSocket
 {
     internal class HyperionClient
     {
-        private readonly bool _useSecVideoCapture;
+        private bool _useSecVideoCapture;
+        private bool _t7ProbePending;
         private WebSocketClient _wsClient;
 
         // Lifecycle: the capture loop runs inside a single Task guarded by a
@@ -50,13 +51,10 @@ namespace HyperTizen.WebSocket
                 {
                     // Tizen 7 and below: flat C API in libsec-video-capture.so.0.
                     // libvideoenhance has no rgb_measure entry points on Tizen 6.0 firmware.
-                    if (ProbeT7VideoCapture())
-                    {
-                        Diag.Log("cap_mode: secvideo-t7 (NV12 FlatBuffers TCP)");
-                        Preference.Set("cap_mode", "secvideo");
-                        return true;
-                    }
-                    Diag.Log("cap_mode: libve (Tizen < 8, libsec-video-capture unusable)");
+                    // The native probe runs later, from the capture loop, so a native crash
+                    // cannot take the service down before its control server is reachable.
+                    _t7ProbePending = true;
+                    Diag.Log("cap_mode: T7 capture probe deferred until capture is enabled");
                     Preference.Set("cap_mode", "libve");
                     return false;
                 }
@@ -73,17 +71,29 @@ namespace HyperTizen.WebSocket
             }
         }
 
-        private static bool ProbeT7VideoCapture()
+        private bool ProbeT7VideoCapture()
         {
+            string state = Preference.Contains("t7_probe") ? Preference.Get<string>("t7_probe") : "";
+            if (state == "running" || state == "crashed")
+            {
+                Preference.Set("t7_probe", "crashed");
+                Diag.Log("T7 capture probe skipped: the previous probe killed the service. Retry with /set?key=t7_probe&value=retry");
+                return false;
+            }
+
             try
             {
                 VideoCapture.InitCapture();
+                Preference.Set("t7_probe", "running");
+                Diag.Log("T7 capture probe: calling secvideo_api_capture_screen...");
                 int result = VideoCapture.ProbeCapture();
+                Preference.Set("t7_probe", "ok");
                 Diag.Log("T7 capture probe: secvideo_api_capture_screen returned " + result);
                 return true;
             }
             catch (Exception ex)
             {
+                Preference.Set("t7_probe", "failed");
                 Diag.Log("T7 capture probe failed: " + ex.GetType().Name + " " + ex.Message);
                 return false;
             }
@@ -106,6 +116,15 @@ namespace HyperTizen.WebSocket
                 {
                     try
                     {
+                        if (_t7ProbePending)
+                        {
+                            _t7ProbePending = false;
+                            _useSecVideoCapture = ProbeT7VideoCapture();
+                            Diag.Log(_useSecVideoCapture
+                                ? "cap_mode: secvideo-t7 (NV12 FlatBuffers TCP)"
+                                : "cap_mode: libve (T7 probe unusable)");
+                        }
+
                         if (_useSecVideoCapture)
                             await StartSecVideo(ct);
                         else
