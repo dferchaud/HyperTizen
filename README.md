@@ -2,20 +2,44 @@
 
 Capture d'ambiance pour HyperHDR / Hyperion sur TV Samsung Tizen.
 
-Cette branche repart du fork [lowryn/HyperTizen](https://github.com/lowryn/HyperTizen) (lui-même basé sur [reisxd/HyperTizen](https://github.com/reisxd/HyperTizen) et les recherches de [SryEyes](https://github.com/SryEyes/HyperTizen)), avec des correctifs pour Tizen 6.0 (ex. Samsung QE55Q80A, 2021).
+Cette branche repart du fork [lowryn/HyperTizen](https://github.com/lowryn/HyperTizen) (lui-même basé sur [reisxd/HyperTizen](https://github.com/reisxd/HyperTizen) et les recherches de [SryEyes](https://github.com/SryEyes/HyperTizen)) et l'adapte à un **Samsung QE55Q80A (Tizen 6.0, 2021)**.
 
-## État réel
+## État réel (QE55Q80A, Tizen 6.0)
 
-- **Non testé sur matériel** : ni le code de cette branche ni le fork lowryn n'ont été testés sur un QE55Q80A. Le fork lowryn a été testé sur un QE55QN90C (Tizen 9).
-- Sur Tizen 6, seule la capture par **pixel sampling** (`libvideoenhance.so`, entrées `cs_ve_*`) est utilisée : 8 zones autour de l'écran, environ 9 FPS annoncés par lowryn sur Tizen 9. La capture plein cadre NV12 n'est tentée que sur Tizen 8 ou plus.
-- Le contrôle passe par un WebSocket sur le port **8086** de la TV (utilisé par `HyperTizenUI`). Il n'y a **pas** de serveur de logs sur le port 45678 : les logs se lisent avec `sdb dlog`.
+Vérifié sur la TV :
+- Le service démarre, écoute sur le port 8086 et répond à `/logs`, `/set` et `/frame.bmp`.
+- La capture plein cadre **fonctionne** : `secvideo_api_capture_screen` (`/usr/lib/libsec-video-capture.so.0`) renvoie 0, et `/frame.bmp` affiche bien l'image de la TV (NV12, 480x270).
 
-## Différences avec le fork lowryn
+Non vérifié :
+- L'envoi des images à HyperHDR / Hyperion (aucun serveur n'était disponible lors des tests).
+- Le lancement automatique du service au démarrage de la TV (`on-boot` est déclaré dans le manifest mais n'a pas été constaté).
+- Le comportement avec du contenu protégé (DRM), qui ne peut pas être capturé.
+- Le rendu des couleurs et la latence en conditions réelles.
 
-- `SystemInfo` ne plante plus si la version de Tizen est illisible (elle est alors traitée comme un firmware ancien).
-- Le démarrage journalise le modèle et la version de Tizen.
-- Une erreur au démarrage du serveur WebSocket de contrôle est journalisée au lieu d'être perdue.
-- Le sondage des API `libvideoenhance` (`ppi_ve_*`, `ve_*`, `cs_ve_*`) journalise la raison de chaque échec.
+## Ce qu'on a découvert sur ce firmware
+
+- `libvideoenhance.so` (19 Ko) ne contient **aucune** fonction `*rgb_measure*` : la méthode par échantillonnage de pixels est impossible sur ce modèle.
+- `libsec-video-capture.so.0` exporte `secvideo_api_capture_screen`. La structure attendue par cette fonction est plus grande que les 36 octets de `Info_t` : avec une structure de 36 octets, le processus est tué par un débordement mémoire (sans exception). Le code utilise donc un tampon natif de 256 octets, avec les champs aux offsets 0 (taille Y), 4 (taille UV), 16 (pointeur Y) et 20 (pointeur UV).
+- `Newtonsoft.Json` ne se charge pas sur ce firmware (`manifest definition does not match`). Il a été remplacé par un petit lecteur JSON (`MiniJson.cs`).
+- `dlog` ne renvoie rien sur ce modèle : le service garde ses messages en mémoire et dans un fichier.
+
+## Interface HTTP du service (port 8086)
+
+| Adresse | Rôle |
+|---|---|
+| `GET /logs` | Logs du service, avec ceux de l'exécution précédente (utile après un plantage) |
+| `GET /set?key=K&value=V` | Applique une configuration (`enabled`, `rpcServer`, `fbsServer`, `t7_probe`) |
+| `GET /frame.bmp` | Une capture de l'écran, affichable dans un navigateur |
+| WebSocket | Protocole de `HyperTizenUI` (`SetConfig`, `ReadConfig`, `ScanSSDP`) |
+
+Exemples :
+```powershell
+curl.exe "http://IP_TV:8086/set?key=enabled&value=true"
+curl.exe "http://IP_TV:8086/set?key=fbsServer&value=IP_HYPERHDR:19400"
+curl.exe -i http://IP_TV:8086/logs
+```
+
+Ces points d'accès n'ont aucune authentification : ne les exposez pas hors de votre réseau local.
 
 ## Compilation
 
@@ -23,10 +47,10 @@ Prérequis : .NET SDK, Tizen Studio (avec les outils TV) et un profil de certifi
 
 ```powershell
 cd HyperTizen
-dotnet build -c Release
+dotnet build -c Release --no-incremental
 ```
 
-Le TPK est produit dans `HyperTizen/bin/Release/tizen90/io.gh.reisxd.HyperTizen-1.0.0.tpk`. La compilation le signe avec un certificat par défaut ; il faut le re-signer avec votre profil :
+Le TPK est produit dans `HyperTizen/bin/Release/tizen90/io.gh.reisxd.HyperTizen-1.0.0.tpk`. Il faut le re-signer avec votre profil :
 
 ```powershell
 cd C:\tizen-studio\tools\ide\bin
@@ -35,44 +59,41 @@ cd C:\tizen-studio\tools\ide\bin
 
 ## Installation sur la TV
 
-1. Activer le **mode développeur** sur la TV et y autoriser l'IP de votre PC.
+1. Activer le **mode développeur** sur la TV et y mettre l'IP de votre PC comme hôte, puis redémarrer la TV.
 2. Connecter la TV :
    ```powershell
    .\sdb connect IP_TV:26101
    ```
-3. Installer :
+3. Installer et lancer :
    ```powershell
+   .\tizen uninstall -p io.gh.reisxd.HyperTizen -s IP_TV:26101
    .\tizen install -n C:\chemin\vers\io.gh.reisxd.HyperTizen-1.0.0.tpk -s IP_TV:26101
-   ```
-   `install failed[118, -4]` ou `-12` : le certificat ne correspond pas à la TV (DUID absent) ou le paquet n'est pas signé avec votre profil.
-4. Lancer le service :
-   ```powershell
    .\tizen run -p io.gh.reisxd.HyperTizen -s IP_TV:26101
    ```
-5. Installer l'interface via TizenBrew (module GitHub) : `dferchaud/HyperTizen/HyperTizenUI`. TizenBrew installe depuis la branche par défaut du dépôt : tant que cette branche n'y est pas fusionnée, le module installé peut être l'ancienne interface (ports 45677/45678), incompatible avec ce service (port 8086). Le service fonctionne sans l'interface ; l'interface ne fait que le piloter.
+   Désinstaller d'abord remet les préférences à zéro.
+   `install failed[118, ...]` : le certificat ne correspond pas à la TV (DUID absent).
+4. Activer la capture :
+   ```powershell
+   curl.exe "http://IP_TV:8086/set?key=enabled&value=true"
+   ```
+
+Si l'IP du PC hôte du mode développeur est remplacée par autre chose (par exemple `127.0.0.1` pour TizenBrew), `sdb connect` et `tizen install` ne fonctionnent plus depuis le PC.
 
 ## Diagnostic
 
-Les logs du service s'affichent avec :
+Ouvrez `http://IP_TV:8086/logs`. Lignes utiles :
 
-```powershell
-.\sdb dlog HyperTizen
-```
+- `Service starting: model=... tizen=...` : le service démarre.
+- `Control server listening on http://*:8086/` : le port est ouvert.
+- `T7 probe: ...` puis `T7 capture probe: secvideo_api_capture_screen returned 0` : la bibliothèque de capture répond.
+- `cap_mode: secvideo-t7` : le mode plein cadre est retenu.
+- `SSDP: no HyperHDR found` : aucun serveur trouvé. Renseignez-le avec `fbsServer`.
 
-Messages utiles au démarrage :
+Si la sonde native tue le service, le démarrage suivant la saute (`t7_probe` passe à `crashed`). Pour la réessayer : `curl.exe "http://IP_TV:8086/set?key=t7_probe&value=retry"`.
 
-- `Service starting: model=... tizen=...` : le service démarre et voit la bonne version.
-- `cap_mode: libve (Tizen < 8)` : le chemin pixel sampling est choisi.
-- `API probe: cs_ve_* found` : `libvideoenhance` répond avec l'API de Tizen 6.
-- `API probe: ... unavailable: ...` : raison de l'échec de chaque variante.
-- `Control WebSocket server failed: ...` : le port 8086 n'a pas pu être ouvert.
+## Interface TizenBrew (HyperTizenUI)
 
-Erreur « Control WebSocket error » dans l'interface : le service ne tourne pas ou le port 8086 n'est pas joignable. Vérifiez d'abord que le service est lancé (`tizen run`) et que `sdb dlog HyperTizen` affiche `Service starting`.
-
-## Configuration de HyperHDR
-
-- Sans réglage, le service cherche HyperHDR par SSDP et utilise `ws://IP:19400/`. Si l'envoi d'images échoue, définissez l'adresse manuellement depuis l'interface (`rpcServer`).
-- Le port 19400 est le port FlatBuffers par défaut de HyperHDR ; à vérifier si HyperHDR ne reçoit rien.
+Le dossier `HyperTizenUI` parle au service par WebSocket sur le port 8086. Le service fonctionne sans elle. TizenBrew installe un module depuis la branche par défaut de son dépôt : tant que cette branche n'y est pas fusionnée, le module installé peut être une autre version.
 
 ## Crédits
 
