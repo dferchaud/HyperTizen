@@ -12,6 +12,8 @@ namespace HyperTizen
         private static readonly int YSize  = Width * Height;
         private static readonly int UVSize = (Width * Height) / 2;
 
+        private const int InfoBytes = 256;
+        private static IntPtr _pInfo;
         private static IntPtr _pImageY;
         private static IntPtr _pImageUV;
         private static byte[] _yData;
@@ -22,27 +24,40 @@ namespace HyperTizen
             if (_pImageY != IntPtr.Zero) return;
             _pImageY  = Marshal.AllocHGlobal(YSize);
             _pImageUV = Marshal.AllocHGlobal(UVSize);
+            _pInfo    = Marshal.AllocHGlobal(InfoBytes);
             _yData    = new byte[YSize];
             _uvData   = new byte[UVSize];
             Diag.Log($"VideoCapture: buffers allocated ({Width}x{Height} NV12)");
         }
 
-        // Raw result of one capture call; throws if the native library or entry point is missing.
+        // Tizen 7 and below: native struct in an oversized zeroed buffer (Info_t layout at offsets 0..35).
+        private static int CaptureRaw()
+        {
+            for (int i = 0; i < InfoBytes; i += 4) Marshal.WriteInt32(_pInfo, i, 0);
+            Marshal.WriteInt32(_pInfo, 0, YSize);
+            Marshal.WriteInt32(_pInfo, 4, UVSize);
+            Marshal.WriteIntPtr(_pInfo, 16, _pImageY);
+            Marshal.WriteIntPtr(_pInfo, 20, _pImageUV);
+            return SDK.SecVideoCaptureT7.CaptureScreenRaw(Width, Height, _pInfo);
+        }
+
+        // Loads the native library step by step, logging each step to the persisted log,
+        // then makes one capture call. Throws if the library or entry point is missing.
         public static int ProbeCapture()
         {
-            var info = new SDK.SecVideoCapture.Info_t
-            {
-                iGivenBufferSize1 = YSize,
-                iGivenBufferSize2 = UVSize,
-                pImageY           = _pImageY,
-                pImageUV          = _pImageUV
-            };
-            return SDK.SecVideoCapture.CaptureScreen(Width, Height, ref info);
+            const string lib = "/usr/lib/libsec-video-capture.so.0";
+            Diag.Log("T7 probe: loading " + lib);
+            IntPtr handle = NativeLibrary.Load(lib);
+            Diag.Log("T7 probe: library loaded, resolving secvideo_api_capture_screen");
+            IntPtr fn = NativeLibrary.GetExport(handle, "secvideo_api_capture_screen");
+            Diag.Log("T7 probe: entry point resolved (" + fn + "), calling with a " + InfoBytes + "-byte zeroed struct");
+            return CaptureRaw();
         }
 
         // Returns captured frame data, or null if capture failed (DRM, scaler error, etc.)
         public static (byte[] yData, byte[] uvData)? CaptureFrame()
         {
+            bool legacyApi = SDK.SystemInfo.TizenVersionMajor < 8;
             var info = new SDK.SecVideoCapture.Info_t
             {
                 iGivenBufferSize1 = YSize,
@@ -51,7 +66,9 @@ namespace HyperTizen
                 pImageUV          = _pImageUV
             };
 
-            int result = SDK.SecVideoCapture.CaptureScreen(Width, Height, ref info);
+            int result = legacyApi
+                ? CaptureRaw()
+                : SDK.SecVideoCapture.CaptureScreen(Width, Height, ref info);
 
             if (result < 0)
             {
@@ -70,8 +87,10 @@ namespace HyperTizen
                 return null;
             }
 
-            Marshal.Copy(info.pImageY,  _yData,  0, YSize);
-            Marshal.Copy(info.pImageUV, _uvData, 0, UVSize);
+            IntPtr pY  = legacyApi ? Marshal.ReadIntPtr(_pInfo, 16) : info.pImageY;
+            IntPtr pUV = legacyApi ? Marshal.ReadIntPtr(_pInfo, 20) : info.pImageUV;
+            Marshal.Copy(pY,  _yData,  0, YSize);
+            Marshal.Copy(pUV, _uvData, 0, UVSize);
 
             return (_yData, _uvData);
         }
