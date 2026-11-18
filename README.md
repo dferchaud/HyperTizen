@@ -125,7 +125,10 @@ Things that matter on this firmware:
   `GET /set?key=diag_http&value=true` (disable with `value=false`). `GET /set?key=fbsServer&value=<pc-ip>:19400` sets the
   HyperHDR address and `GET /set?key=enabled&value=true` starts capturing; `/set` is always on, like the control WebSocket.
   None of these endpoints have authentication.
-- The service does not start by itself after a reboot or standby: launch it again each time (for example from TizenBrew).
+- The TizenBrew module script launches the service with `shell:0 debug <appid>` over the TV's own sdb
+  (`127.0.0.1:26101`, which needs Developer Mode's host IP to be `127.0.0.1`), keeps retrying until the service answers,
+  and serves `http://<tv-ip>:8087/status`.
+- The service does not start by itself after a reboot or standby: open TizenBrew and launch the module each time.
 
 Tizen 7, 8 and 9 were not tested with these changes.
 
